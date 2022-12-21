@@ -1,0 +1,12 @@
+-rw-r--r-- 1 root root 451M May 31  2018 i94_apr16_sub.sas7bdat
+-rw-r--r-- 1 root root 597M May 31  2018 i94_aug16_sub.sas7bdat
+-rw-r--r-- 1 root root 500M May 31  2018 i94_dec16_sub.sas7bdat
+-rw-r--r-- 1 root root 374M May 31  2018 i94_feb16_sub.sas7bdat
+-rw-r--r-- 1 root root 415M May 31  2018 i94_jan16_sub.sas7bdat
+-rw-r--r-- 1 root root 620M May 31  2018 i94_jul16_sub.sas7bdat
+-rw-r--r-- 1 root root 684M May 31  2018 i94_jun16_sub.sas7bdat
+-rw-r--r-- 1 root root 459M May 31  2018 i94_mar16_sub.sas7bdat
+-rw-r--r-- 1 root root 501M May 31  2018 i94_may16_sub.sas7bdat
+-rw-r--r-- 1 root root 424M May 31  2018 i94_nov16_sub.sas7bdat
+-rw-r--r-- 1 root root 531M May 31  2018 i94_oct16_sub.sas7bdat
+-rw-r--r-- 1 root root 543M May 31  2018 i94_sep16_sub.sas7bdat
