@@ -28,6 +28,7 @@ Udacity Provided project:
         KDnuggets: Datasets for Data Mining and Data Science    https://www.kdnuggets.com/datasets/index.html
         UCI Machine Learning Repository                         https://archive.ics.uci.edu/ml/datasets.php
         Reddit: r/datasets/                                     https://www.reddit.com/r/datasets/
+        https://www.yelp.com/dataset
     
     Software Development:
         https://github.com/toddmotto/public-apis
@@ -102,6 +103,8 @@ Temperature Data:
 
 
 
+
+
 ### Implementing ...:
 [Step-1]:
 
@@ -115,5 +118,20 @@ Identify data quality issues:
             Eliminating
             Substituting (by zero, by forward fill, backward fill, ... )
 
+    -> to check a particular `column` of df is contain digit or not:
+        df[df[['user_id']].apply(lambda x: x[0].isdigit(), axis=1)]
+    
+    -> General ideas about data cleaning: 
+        + https://knowledge.udacity.com/questions/230175
+        + 
+
+    [?] How to use all provided datasets:
+    [?] How to make link each others and buid the retional database : Fact and Dimensional Table
+        + airport-codes_csv:             for which purpose ?
+        + I94_SAS_Labels_Descriptions:  ?? 
+        + us-cities-demographics:       ??
+        + temperature data      :       ??
 
 
+[Step-3]
+    -> general ideas for ETL : https://knowledge.udacity.com/questions/672002
