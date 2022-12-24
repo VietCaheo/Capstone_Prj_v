@@ -90,23 +90,20 @@ Immigration Data:
 
 Temperature Data:
 
-### to be Asked and Referring
-
--> Read multiple .sas7bat files into the data frame
-    https://stackoverflow.com/questions/64246782/converting-each-sas-dataset-to-dataframe-in-pandas  (-> this one for pandas, and can install `pyreadstat`)
-    
-    https://knowledge.udacity.com/questions/904245  <and below> 
-    https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
-
--> loading data into dataframe: 
-    https://learn.udacity.com/nanodegrees/nd104/parts/cd0024/lessons/ls0520/concepts/1437455d-54a5-4bd6-8096-b7a730a4deee
-
-
-
-
-
-### Implementing ...:
+### Implementing and Ask:
 [Step-1]:
+    -> data aggregation: 
+        https://knowledge.udacity.com/questions/514122
+
+
+    -> Read multiple .sas7bat files into the data frame
+        https://stackoverflow.com/questions/64246782/converting-each-sas-dataset-to-dataframe-in-pandas     (-> this one for pandas, and can install `pyreadstat`)
+
+        https://knowledge.udacity.com/questions/904245  <and below> 
+        https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
+
+    -> loading data into dataframe: 
+        https://learn.udacity.com/nanodegrees/nd104/parts/cd0024/lessons/ls0520/concepts/   1437455d-54a5-4bd6-8096-b7a730a4deee
 
 [Step-2]: Explore and access data
 Identify data quality issues:
@@ -123,7 +120,10 @@ Identify data quality issues:
     
     -> General ideas about data cleaning: 
         + https://knowledge.udacity.com/questions/230175
-        + 
+        + https://knowledge.udacity.com/questions/391660
+    -> to count NaN in a dataframe: 
+    https://stackoverflow.com/questions/44627386/how-to-find-count-of-null-and-nan-values-for-each-column-in-a-pyspark-dataframe
+
 
     [?] How to use all provided datasets:
     [?] How to make link each others and buid the retional database : Fact and Dimensional Table
