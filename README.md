@@ -105,6 +105,9 @@ Temperature Data:
     -> loading data into dataframe: 
         https://learn.udacity.com/nanodegrees/nd104/parts/cd0024/lessons/ls0520/concepts/   1437455d-54a5-4bd6-8096-b7a730a4deee
 
+    -> different Pandas Df and Spark Df:
+        https://www.geeksforgeeks.org/difference-between-spark-dataframe-and-pandas-dataframe/
+
 [Step-2]: Explore and access data
 Identify data quality issues:
     -> Include NULL (NaN) value in some data files:
@@ -117,13 +120,21 @@ Identify data quality issues:
 
     -> to check a particular `column` of df is contain digit or not:
         df[df[['user_id']].apply(lambda x: x[0].isdigit(), axis=1)]
-    
-    -> General ideas about data cleaning: 
-        + https://knowledge.udacity.com/questions/230175
+
         + https://knowledge.udacity.com/questions/391660
     -> to count NaN in a dataframe: 
     https://stackoverflow.com/questions/44627386/how-to-find-count-of-null-and-nan-values-for-each-column-in-a-pyspark-dataframe
 
+    -> suggestion about cleaning airport data and create table, with airport key:
+        https://knowledge.udacity.com/questions/332384
+
+    -> duplicate data check and dealing:
+        https://knowledge.udacity.com/questions/695329
+        https://stackoverflow.com/questions/48554619/count-number-of-duplicate-rows-in-sparksq
+    
+    -> dealing with NaN by insert NULL to integer:
+        https://knowledge.udacity.com/questions/908123
+    
 
     [?] How to use all provided datasets:
     [?] How to make link each others and buid the retional database : Fact and Dimensional Table
@@ -132,6 +143,60 @@ Identify data quality issues:
         + us-cities-demographics:       ??
         + temperature data      :       ??
 
-
 [Step-3]
-    -> general ideas for ETL : https://knowledge.udacity.com/questions/672002
+    -> General ideas about data cleaning and build ETL 
+        [*] https://knowledge.udacity.com/questions/230175
+    
+    -> config for AWS:
+        https://knowledge.udacity.com/questions/504468
+
+
+    -> general ideas for ETL :
+        question about choose storage
+        https://knowledge.udacity.com/questions/672002
+
+
+################################################################
+<!-- Docs for Step2  -->
+# Step 2: Explore and Assess the Data
+
+# Performing cleaning tasks here
+# Identify task to explore data and cleaning steps
+
+# Task1: Handling with NaN value (missing value)
+#  -> Indentify where NaN come from (which column on each df)
+#  -> count the Nan value
+#  -> select method to handle the NaN value (might be depend on the Nan come from which field of df) ?
+#     + drop the NaN row value
+#     + or just let it be or replace empty by NULL.
+
+# [airport_code]:
+#     -> the column `name`: does not have the NaN value
+#     -> but, there are two duplicated name
+
+# [cites_demography]:
+#     -> Some columns does not have NaN: City/ State/ State Code/ Race/ 
+
+# [Immigration dataL: i94_xxx16_sub.sas7bdat]
+# need to be indentified the NaN by df method
+
+# [Temerature data: GlobalLandTemperaturesByCity.csv]
+#   -> column 'City' and 'Country' does not have NaN value
+#   -> remove all NaN value exist in Temperature Schema (because many duplicate city name)
+
+# Task2: Duplicate data:
+#  -> how identify>
+#  -> how to handle with duplicating data
+
+# [!Note] using Pandas df just to explore data NaN and duplicate; use PySpark to handle the 
+
+# Task1: Handling with NaN value (missing value)
+# TODO Identify which table, which column contain the NaN value
+
+#_________v_________v_________v_________v_________v_________v_________v
+#  use the read csv by pandas
+#  Check NaN in df of Temerature
+
+# print("to see NaN value in interest columns of df_Temper... \n")
+# NaN_dt=df_Temper['dt'].isna().sum()
+# print("NaN value number of column dt is: {} \n".format(NaN_dt))
