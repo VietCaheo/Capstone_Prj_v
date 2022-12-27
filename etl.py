@@ -34,27 +34,33 @@ def Check_NaN(type, input_path):
 	"""
 	if type == 'temperature':
 		df= pd.read_csv(input_path)
-		print("to see first 05 rows of Temperature df ... \n")
-		df.head()
+		print("\n to see first 05 rows of Temperature df ... \n")
+		print("temperature --------------------------------\n")
+		print(df.head(3))
+		print("-----------------------------------------\n")
 
-		print("to check NaN values for entry Temperature df ... \n")
+		print("\n to check NaN values for entry Temperature df ... \n")
 		print(df.isnull().sum())
 
 	if type == 'uscity':
 		df = pd.read_csv(input_path, header=None, encoding="utf-8", sep=";")
-		print("to see first 2 rows in df_UsCities ... \n")
-		print(df.head(5))
+		print("\n to see first 2 rows in df_UsCities ... \n")
+		print("uscity --------------------------------\n")
+		print(df.head(3))
+		print("-----------------------------------------\n")
 
-		print("to check NaN values for entry df_UsCities ... \n")
-		print(df.isnull().sum())
+		# print("\n to check NaN values for entry df_UsCities ... \n")
+		# print(df.isnull().sum())
 	
 	if type == 'airport':
 		df= pd.read_csv(input_path, header=None, encoding="utf-8")
-		print("to see first 2 rows in df_Airport ... \n")
-		print(df.head(5))
+		print("\n to see first 2 rows in df_Airport ... \n")
+		print("airport --------------------------------\n")
+		print(df.head(3))
+		print("-----------------------------------------\n")
 
-		print("to check NaN values for entry df_Airport ... \n")
-		print(df.isnull().sum())
+		# print("\n to check NaN values for entry df_Airport ... \n")
+		# print(df.isnull().sum())
 
 # ------------------------------------------------------------------------------------------------------------
 # From output Step-1 exploring data, write up to docs for Steps2 
@@ -84,9 +90,6 @@ def process_Immigra_data(spark, input_data):
 	i = 0
 	print("To see accumulating df.count for 12 data files .... \n")
 	for file in files:
-	# tempo to test first 3 file
-	    if(i==3): 
-	        break
 	    if(i==0):
 	        dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
 	        cols= dfS.columns
@@ -94,13 +97,15 @@ def process_Immigra_data(spark, input_data):
 	    if(i>0):
 	        dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
 	        print(dfS.count())
+	    if(i==1): 
+	        break
 	    i = i+1
 
-	print("\n to see Schema of Immigra_data ... \n")
+	print("\n Schema of Immigra_data ------------------------------------- \n")
 	dfS.printSchema()
-	dfS.show(5)
+	dfS.show(3)
 
-	print("to show NaN values in dfS of Immigra_data... \n")
+	print("\n to show NaN values in dfS of Immigra_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
 
@@ -118,10 +123,15 @@ def process_Immigra_data(spark, input_data):
 
 	# Handle with Duplicated
 	# Check duplicated and drop as subset specified
-	print("to check any duplicated in dfS_ImmigAll Spark df ... \n")
-	print("To Drop duplicate for Schema dfS_ImmigAll with subset cicid ...")
-	dfS.drop_duplicates(subset=['cicid']).show()
-	# dfS.show()
+	print("to check any duplicated in dfS_ImmigAll ... \n")
+
+	print("\n to How many rows in Immigra before drop_duplicates {} \n".format(dfS.count()))
+	print("Drop duplicated with subset cicid ...")
+	# dfS.drop_duplicates(subset=['cicid'], keep = 'first', inplace=True)
+	dfS.drop_duplicates(["cicid"])
+	dfS.show(3)
+	print("\n to How many rows in Immigra after drop_duplicates {} \n".format(dfS.count()))
+
 
 	print("Loading data to table later ... ")
 
@@ -134,12 +144,17 @@ def process_Immigra_data(spark, input_data):
 # ------------------------------------------------------------------------------------------------------------
 def process_UsCities_data(spark, input_data):
 
-	# fname_UsCities = './us-cities-demographics.csv'
-	dfS = spark.read.csv(input_data, sep=";")
+	# dfS = spark.read.csv(input_data, sep=";")
+	dfS = spark.read.options(header='True', inferSchema='True')\
+					.csv(input_data, sep=";")
 
-	print("to see Spark Schema of UsCities ... \n")
+	print("Schema of UsCities ------------------------------------------ \n")
 	dfS.printSchema()
 	dfS.show(2)
+
+	print("\n to show NaN values in dfS of UsCities_data...")
+	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
+
 	
 	# Handle with NaN
 	# ...
@@ -147,23 +162,77 @@ def process_UsCities_data(spark, input_data):
 
 	# Handle with Duplicated
 	print("to How many rows in UsCities before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop UsCities_Demo with subset 'city' ... by quantity \n {}")
-	dfS.drop_duplicates(subset = 'City').show()
+	print("Drop duplicated with subset 'City' ...  \n")
+	dfS=dfS.drop_duplicates(subset =['City'])
+	dfS.show(3)
 	print("\n to How many rows in UsCities after drop_duplicates {} \n".format(dfS.count()))
 
+	# before write parquet, rename invalid characters in column name
+	dfS = dfS.select([col(c).alias(
+		c.replace( '(', '')
+		.replace( ')', '')
+		.replace( ',', '')
+		.replace( ';', '')
+		.replace( '{', '')
+		.replace( '}', '')
+		.replace( '\n', '')
+		.replace( '\t', '')
+		.replace( ' ', '_')
+	) for c in dfS.columns])
 
 	print("Writing and Reading Parquet files for dfS_UsCities ... \n")
 	dfS.write.parquet("USCities_data2")
 	dfS=spark.read.parquet("USCities_data2")
 # ---------------------------------------------------------------
-def process_CityTemper_data(spark, input_data):
-
-	dfS = spark.read.csv(input_data)
-	print("to see how many rows in  dfS.count: {}".format(dfS.count()))
+def process_AirPort_data(spark, input_data):
 	
-	print("\n to see Spark Schema of dfS ... \n")
+	dfS = spark.read.options(header='True', inferSchema='True')\
+					.csv(input_data)
+
+	print("\n Schema of dfS Airport --------------------------------------- \n")
 	dfS.printSchema()
 	dfS.show(2)
+
+	print("\n to show NaN values in dfS of AirPort_data...")
+	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
+	
+	# Handle with NaN - consider no drop NaN for Airport, use `ident` for Fkey
+
+	# Handle with Duplicated
+	# Drop duplicated with `ident` and `municipality`
+	print(" How many rows in AirPort dfS before drop_duplicates {} \n".format(dfS.count()))
+	print("Drop duplicate with subset 'dt' ... \n {}")
+	dfS=dfS.drop_duplicates(subset = ['ident','municipality'])
+	dfS.show(5)
+	print(" \n How many rows in AirPort dfS after drop_duplicates {} \n".format(dfS.count()))
+
+
+	print("Writing and Reading Parquet files for dfS Airport ... \n")
+	dfS.write.parquet("Airport_data2")
+	dfS=spark.read.parquet("Airport_data2")
+# -----------------------------------------------------------------------------
+def process_CityTemper_data(spark, input_data):
+
+	dfS = spark.read.options(header='True', inferSchema='True')\
+					.csv(input_data)
+	print("to see how many rows in  dfS.count: {}".format(dfS.count()))
+	
+	print("\n Schema of dfS---------------------------------------------- \n")
+	dfS.printSchema()
+	dfS.show(2)
+
+	
+	print("\n to show NaN values in dfS of CityTemper_data...")
+	# dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
+
+	# TempData include timestamp type, need dedicated check 
+	dfS.select(*[
+	(
+		f.count(f.when((f.isnan(c) | f.col(c).isNull()), c)) if t not in ("timestamp", "date")
+		else f.count(f.when(f.col(c).isNull(), c))
+	).alias(c)
+	for c, t in dfS.dtypes if c in dfS.columns]).show()
+
 
 	# Handle with NaN
 	print("Handle NaN and duplicate in Spark dfS Schema ... \n")
@@ -176,10 +245,11 @@ def process_CityTemper_data(spark, input_data):
 	dfS = dfS.dropna()
 
 	# Handle with Duplicated
-	print("to How many rows in UsCities before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicate for Temperature data with subset 'dt' ... \n {}")
-	dfS.drop_duplicates(subset = 'dt').show()
-	print(" \n to How many rows in UsCities after drop_duplicates {} \n".format(dfS.count()))
+	print(" How many rows in Temperature dfS before drop_duplicates {} \n".format(dfS.count()))
+	print("Drop duplicate with subset 'dt' ... \n {}")
+	dfS=dfS.drop_duplicates(subset =['dt'])
+	dfS.show(5)
+	print(" \n How many rows in Temperature dfS after drop_duplicates {} \n".format(dfS.count()))
 
 
 	print("Loading data to table at here later ... ")
@@ -187,23 +257,6 @@ def process_CityTemper_data(spark, input_data):
 	print("Writing and Reading Parquet for dfS ... \n")
 	dfS.write.parquet("Temp_data2")
 	dfS=spark.read.parquet("Temp_data2")
-# -----------------------------------------------------------------------------
-def process_AirPort_data(spark, input_data):
-	
-	dfS = spark.read.csv(input_data)
-	print("\n to see Spark Schema of dfS ... \n")
-	dfS.printSchema()
-	dfS.show(2)
-	
-	# Handle with NaN
-	# ...
-
-	# Handle with Duplicated
-	# ...
-
-	print("Writing and Reading Parquet files for dfS ... \n")
-	dfS.write.parquet("Airport_data2")
-	dfS=spark.read.parquet("Airport_data2")
 # -----------------------------------------------------------------------------
 
 # Step 3: Define the Data Model
@@ -219,6 +272,7 @@ def process_AirPort_data(spark, input_data):
 def main():
 	spark = create_spark_session()
 
+	# In case need to staging, save target table in S3, Redshift, need to define as input, output here also
 	# input_data = 
 	# to staging parquets file of each table into S3 
 	# output_data = "s3a://viet-datalake-bucket/"
@@ -235,18 +289,21 @@ def main():
 	input_CityTemper_data ='../../data2/GlobalLandTemperaturesByCity.csv'
 
 
-	# Step1 Explore Data and NaN 
-	# --------------------------
+	# Step1 Explore Data and NaN + Duplicated check 
+	# Immigration datasets sas78dat files, due to large amount, NaN check will be done in processing multiple file below
+	# ---------------------------------------------
 	Check_NaN('temperature', input_CityTemper_data)
-	Check_NaN('uscity', input_UsCities_data)
-	Check_NaN('airport', input_AirPort_data)
+	# Check_NaN('uscity', input_UsCities_data)
+	# Check_NaN('airport', input_AirPort_data)
 
 
 	# Step2: Do write up the doc
-	# --------------------------
+	# Some cleaning for NaN and Duplicated data were done in process each datasets right below
+	# ---------------------------------------------
+
 
 	# Step3: Build a complete ETL process
-	# -----------------------------------
+	# ---------------------------------------------
 		# Load data file from data set
 		# Cleaning data : NaN and duplicated if need
 		# Loading data to target tables
@@ -263,7 +320,7 @@ def main():
 	process_CityTemper_data(spark, input_CityTemper_data )
 
 	# Step 4: Run Pipelines to Model the Data
-	# ------------------------------------------
+	# ---------------------------------------------
 
 
 if __name__ == "__main__":
