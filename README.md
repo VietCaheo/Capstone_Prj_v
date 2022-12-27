@@ -157,6 +157,7 @@ Identify data quality issues:
 
 
 ################################################################
+<!-- %run etl.py -->
 <!-- Docs for Step2  -->
 # Step 2: Explore and Assess the Data
 
