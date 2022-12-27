@@ -155,6 +155,8 @@ Identify data quality issues:
         question about choose storage
         https://knowledge.udacity.com/questions/672002
 
+    -> Concept about PartitionBy when loading in dataLake Model
+
 
 ################################################################
 <!-- %run etl.py -->
@@ -194,7 +196,28 @@ Identify data quality issues:
 # Task1: Handling with NaN value (missing value)
 # TODO Identify which table, which column contain the NaN value
 
-#_________v_________v_________v_________v_________v_________v_________v
+############################################################################################
+<!-- Doc for Step #3 -->
+
+Choose Data Model type: NoSQL Data Model:
+reason as in here : https://learn.udacity.com/nanodegrees/nd027/parts/cd0029/lessons/ls1959/concepts/a29c2916-80dd-4440-94bf-ad779e700788
+    + Have large amounts data
+    + Need to be able to storage in different format
+    + Need a flexible schema, high availability: add more machines or nodes to a system to increase performance and space for data.
+
+
+Choose the Star schema:
+    https://www.geeksforgeeks.org/difference-between-star-schema-and-snowflake-schema/
+    + In star schema, The fact tables and the dimension tables are contained.
+    + using top-down model 
+
+Use data lake model to leverage:
+    "Partitioning the data on the file system is a way to improve the performance of the query when dealing with a large dataset in the Data lake. A Data Lake is a centralized repository of structured, semi-structured, unstructured, and binary data that allows you to store a large amount of data as-is in its original raw format."
+    -> When use this can use PartitionBy when write datasets (dataframe) on large a mount into target table to save to output
+
+
+
+############################################################################################
 #  use the read csv by pandas
 #  Check NaN in df of Temerature
 

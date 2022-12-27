@@ -125,19 +125,22 @@ def process_Immigra_data(spark, input_data):
 	# Check duplicated and drop as subset specified
 	print("to check any duplicated in dfS_ImmigAll ... \n")
 
-	print("\n to How many rows in Immigra before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicated with subset cicid ...")
-	# dfS.drop_duplicates(subset=['cicid'], keep = 'first', inplace=True)
+	print("\n Number of Immigra before drop_duplicates {} \n".format(dfS.count()))
+	print("Drop duplicated by cicid for make sure cicid is unique for each Immigrant Info...")
 	dfS.drop_duplicates(["cicid"])
-	dfS.show(3)
-	print("\n to How many rows in Immigra after drop_duplicates {} \n".format(dfS.count()))
+	# dfS.show(3)
+	print("\n Number of Immigra after drop_duplicates {} \n".format(dfS.count()))
 
 
 	print("Loading data to table later ... ")
 
 
-	print("Writing and Reading Parquet files  for dfS  ... \n")
-	dfS.write.parquet("sas_data1")
+	print("Writing and Reading Parquet partitionBy `i94yr`... \n")
+	dfS.write\
+	   .mode('overwrite')\
+	   .partitionBy('i94yr')\
+	   .parquet("sas_data1")
+
 	dfS=spark.read.parquet("sas_data1")
 
 # end of process_Immigra_data(xxx)
@@ -155,17 +158,17 @@ def process_UsCities_data(spark, input_data):
 	print("\n to show NaN values in dfS of UsCities_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
-	
 	# Handle with NaN
-	# ...
-
+	# Number of NaN value in this UsCities is small, and no need to drop
+	# Some important field no NaN are: City/ State/ State Code/ 
 
 	# Handle with Duplicated
-	print("to How many rows in UsCities before drop_duplicates {} \n".format(dfS.count()))
+	# Make sure `City` is unique for this Df
+	print("Rows number in UsCities before drop_duplicates {} \n".format(dfS.count()))
 	print("Drop duplicated with subset 'City' ...  \n")
 	dfS=dfS.drop_duplicates(subset =['City'])
 	dfS.show(3)
-	print("\n to How many rows in UsCities after drop_duplicates {} \n".format(dfS.count()))
+	print("\n Rows numbers in UsCities after drop_duplicates {} \n".format(dfS.count()))
 
 	# before write parquet, rename invalid characters in column name
 	dfS = dfS.select([col(c).alias(
@@ -180,8 +183,14 @@ def process_UsCities_data(spark, input_data):
 		.replace( ' ', '_')
 	) for c in dfS.columns])
 
-	print("Writing and Reading Parquet files for dfS_UsCities ... \n")
-	dfS.write.parquet("USCities_data2")
+	print("Writing and Reading Parquet files for dfS_UsCities : partitionBy 'Race' ... \n")
+
+	# Using City and State Code as the key
+	dfS.write\
+	   .mode('overwrite')\
+	   .partitionBy('Race')\
+	   .parquet("USCities_data2")
+
 	dfS=spark.read.parquet("USCities_data2")
 # ---------------------------------------------------------------
 def process_AirPort_data(spark, input_data):
@@ -196,19 +205,25 @@ def process_AirPort_data(spark, input_data):
 	print("\n to show NaN values in dfS of AirPort_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 	
-	# Handle with NaN - consider no drop NaN for Airport, use `ident` for Fkey
+	# Handle with NaN - consider no drop NaN for Airport, 
+	# We have `ident`/ iso_country/ iso_region/ or coordinates are no NaN
 
 	# Handle with Duplicated
 	# Drop duplicated with `ident` and `municipality`
-	print(" How many rows in AirPort dfS before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicate with subset 'dt' ... \n {}")
-	dfS=dfS.drop_duplicates(subset = ['ident','municipality'])
-	dfS.show(5)
-	print(" \n How many rows in AirPort dfS after drop_duplicates {} \n".format(dfS.count()))
+	print("\n Rows number of AirPort dfS before drop_duplicates {} \n".format(dfS.count()))
+	print("Drop duplicate with subset 'ident' ... \n {}")
+	dfS=dfS.drop_duplicates(subset = ['ident'])
+	# dfS.show(5)
+	print(" \n Rows number of AirPort dfS after drop_duplicates {} \n".format(dfS.count()))
 
 
-	print("Writing and Reading Parquet files for dfS Airport ... \n")
-	dfS.write.parquet("Airport_data2")
+	print("\n Writing and Reading Parquet files for dfS Airport partitionBy iso_country... \n")
+
+	dfS.write\
+	   .mode('overwrite')\
+	   .partitionBy('iso_country')\
+	   .parquet("Airport_data2")
+
 	dfS=spark.read.parquet("Airport_data2")
 # -----------------------------------------------------------------------------
 def process_CityTemper_data(spark, input_data):
@@ -235,27 +250,32 @@ def process_CityTemper_data(spark, input_data):
 
 
 	# Handle with NaN
-	print("Handle NaN and duplicate in Spark dfS Schema ... \n")
+	print("Temperature Df drop all row with blank `AverageTemperature`... \n")
 
 	# PySpark dfS.count() will count all row include NaN
-
-	NaNcount = dfS.count() - dfS.dropna().count()
+	NaNcount = dfS.count() - dfS.dropna(how='any', subset=['AverageTemperature']).count()
 	print("How many NaN values in Temperature dfS ... {}".format(NaNcount))
 	print("Droping NaN for Temperature Schema: dfS ... \n")
-	dfS = dfS.dropna()
+	dfS = dfS.dropna(how='any', subset=['AverageTemperature'])
+
 
 	# Handle with Duplicated
-	print(" How many rows in Temperature dfS before drop_duplicates {} \n".format(dfS.count()))
+	print(" \n Row number of  Temperature dfS before drop_duplicates by 'dt' {} \n".format(dfS.count()))
 	print("Drop duplicate with subset 'dt' ... \n {}")
 	dfS=dfS.drop_duplicates(subset =['dt'])
-	dfS.show(5)
-	print(" \n How many rows in Temperature dfS after drop_duplicates {} \n".format(dfS.count()))
+	# dfS.show(5)
+	print(" \n Row number of Temperature dfS after drop_duplicates by 'dt' {} \n".format(dfS.count()))
 
 
 	print("Loading data to table at here later ... ")
 	
-	print("Writing and Reading Parquet for dfS ... \n")
-	dfS.write.parquet("Temp_data2")
+	print("Writing and Reading Parquet partitionBy `Country` ... \n")
+
+	dfS.write\
+	   .mode('overwrite')\
+	   .partitionBy('Country')\
+	   .parquet("Temp_data2")
+
 	dfS=spark.read.parquet("Temp_data2")
 # -----------------------------------------------------------------------------
 

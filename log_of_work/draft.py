@@ -1,4 +1,60 @@
+# drop duplicated: 
+dropDisDF = df.dropDuplicates(["department","salary"])
 
+##########################################################
+#  timestamp NaN check in Schema Spark
+from pyspark.sql import functions as f
+
+df.select(*[
+    (
+        f.count(f.when((f.isnan(c) | f.col(c).isNull()), c)) if t not in ("timestamp", "date")
+        else f.count(f.when(f.col(c).isNull(), c))
+    ).alias(c)
+    for c, t in df.dtypes if c in cols_check
+]).show()
+
+cols_check = [list of columns]
+
+##########################################################
+
+
+spark = create_spark_session()
+
+# In case need to staging, save target table in S3, Redshift, need to define as input, output here also
+# input_data = 
+# to staging parquets file of each table into S3 
+# output_data = "s3a://viet-datalake-bucket/"
+
+# 12 files of Immigration Datasets, consider to limit data when run test for time saving
+input_Immig_data= '../../data/18-83510-I94-Data-2016'
+# another datasets by signle file
+input_UsCities_data = './us-cities-demographics.csv'
+input_AirPort_data  = './airport-codes_csv.csv'
+# This file with more than 1mil rows
+input_CityTemper_data ='../../data2/GlobalLandTemperaturesByCity.csv'
+# Step1 Explore Data and NaN + Duplicated check 
+# Immigration datasets sas78dat files, due to large amount, NaN check will be done in processing multiple file below
+# ---------------------------------------------
+Check_NaN('temperature', input_CityTemper_data)
+Check_NaN('uscity', input_UsCities_data)
+Check_NaN('airport', input_AirPort_data)
+# Step2: Do write up the doc
+# Some cleaning for NaN and Duplicated data were done in process each datasets right below
+# ---------------------------------------------
+# Step3: Build a complete ETL process
+# ---------------------------------------------
+    # Load data file from data set
+    # Cleaning data : NaN and duplicated if need
+    # Loading data to target tables
+    # Write spark parquet files
+# for local read by Spark DataFrame
+# Propotype want to build:  process_function(spark, input, output)
+# To read the dataset using the PySpark 
+process_Immigra_data(spark, input_Immig_data )
+process_UsCities_data(spark, input_UsCities_data )
+process_AirPort_data(spark, input_AirPort_data )
+process_CityTemper_data(spark, input_CityTemper_data )
+# ##########################################################
 import pyspark.sql.functions as f
 
 #_______v_______v_______v_______v_______v_______v_______v_______v_______v_______v_______v
@@ -291,4 +347,15 @@ def process_AirPort_data(spark, input_data):
 
 
 
+df = df.select([col(c).alias(
+        c.replace( '(', '')
+        .replace( ')', '')
+        .replace( ',', '')
+        .replace( ';', '')
+        .replace( '{', '')
+        .replace( '}', '')
+        .replace( '\n', '')
+        .replace( '\t', '')
+        .replace( ' ', '_')
+    )])
 
