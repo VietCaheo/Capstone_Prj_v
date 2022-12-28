@@ -109,7 +109,8 @@ def process_Immigra_data(spark, input_data):
 		if(i>0):
 			dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
 			print(dfS.count())
-		if(i==1): 
+		# tempo to saving time run test
+		if(i==0): 
 			break
 		i = i+1
 

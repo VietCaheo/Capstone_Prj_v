@@ -79,7 +79,7 @@ def cleaning_UsCities_data(dfS, NaN_subset=[], Dup_subset=[]):
 	# Make sure `City` is unique for this Df
 	print("----------------------------------------------------------------------------")
 	print("\n Rows number in UsCities before drop_duplicates with subset{} {} \n".format(Dup_subset, dfS.count()))
-	print("Drop duplicated with subset {}} ...  \n".format(Dup_subset))
+	print("Drop duplicated with subset {} ...  \n".format(Dup_subset))
 	cleaned_dfS = dfS.drop_duplicates(subset = Dup_subset)
 	# cleaned_dfS.show(3)
 	print("\n Rows numbers in UsCities after drop_duplicates with subset{} {} \n".format(Dup_subset, cleaned_dfS.count()))
