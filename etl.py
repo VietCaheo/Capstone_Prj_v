@@ -88,7 +88,7 @@ def process_Immigra_data(spark, input_data):
 	    return reduce(DataFrame.unionAll, dfs)
 
 	i = 0
-	print("To see accumulating df.count for 12 data files .... \n")
+	print("\n To see accumulating df.count for 12 data files .... \n")
 	for file in files:
 	    if(i==0):
 	        dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
@@ -105,17 +105,17 @@ def process_Immigra_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(3)
 
-	print("\n to show NaN values in dfS of Immigra_data...")
+	print("\n show NaN values in dfS of Immigra_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
 
 	# Handle with NaN
-	print("Droping NaN values here prior to  load to tables ... \n")
+	print("\n Droping NaN values here prior to  load to tables ... \n")
 
 	# base on intention Fact and Dimension Table being created, select 'i94cit','i94addr' as subset when drop_nan
 	NaNcount = dfS.count() - dfS.dropna(how='any', subset=['i94cit','i94addr']).count()
 
-	print("To show how many rows is being dropped when filtered by i94cit and i94addr... {}".format(NaNcount))
+	print("\n To show how many rows is being dropped when filtered by i94cit and i94addr... {}".format(NaNcount))
 
 	print("Droping NaN  ....... \n")
 	dfS.dropna(how='any', subset=['i94cit','i94addr'])
@@ -126,7 +126,7 @@ def process_Immigra_data(spark, input_data):
 	print("to check any duplicated in dfS_ImmigAll ... \n")
 
 	print("\n Number of Immigra before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicated by cicid for make sure cicid is unique for each Immigrant Info...")
+	print("\n Drop duplicated by cicid for make sure cicid is unique for each Immigrant Info...")
 	dfS.drop_duplicates(["cicid"])
 	# dfS.show(3)
 	print("\n Number of Immigra after drop_duplicates {} \n".format(dfS.count()))
@@ -135,7 +135,7 @@ def process_Immigra_data(spark, input_data):
 	print("Loading data to table later ... ")
 
 
-	print("Writing and Reading Parquet partitionBy `i94yr`... \n")
+	print("\n Writing and Reading Parquet partitionBy `i94yr`... \n")
 	dfS.write\
 	   .mode('overwrite')\
 	   .partitionBy('i94yr')\
@@ -164,7 +164,8 @@ def process_UsCities_data(spark, input_data):
 
 	# Handle with Duplicated
 	# Make sure `City` is unique for this Df
-	print("Rows number in UsCities before drop_duplicates {} \n".format(dfS.count()))
+	print("----------------------------------------------------------------------------")
+	print("\n Rows number in UsCities before drop_duplicates {} \n".format(dfS.count()))
 	print("Drop duplicated with subset 'City' ...  \n")
 	dfS=dfS.drop_duplicates(subset =['City'])
 	dfS.show(3)
@@ -210,11 +211,11 @@ def process_AirPort_data(spark, input_data):
 
 	# Handle with Duplicated
 	# Drop duplicated with `ident` and `municipality`
-	print("\n Rows number of AirPort dfS before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicate with subset 'ident' ... \n {}")
-	dfS=dfS.drop_duplicates(subset = ['ident'])
+	print("\n Rows number of AirPort dfS before drop_duplicates by 'ident', 'name' {} \n".format(dfS.count()))
+	print("Drop duplicate with subset 'ident', 'name' ... \n {}")
+	dfS=dfS.drop_duplicates(subset = ['ident', 'name'])
 	# dfS.show(5)
-	print(" \n Rows number of AirPort dfS after drop_duplicates {} \n".format(dfS.count()))
+	print(" \n Rows number of AirPort dfS after drop_duplicates by 'ident', 'name' {} \n".format(dfS.count()))
 
 
 	print("\n Writing and Reading Parquet files for dfS Airport partitionBy iso_country... \n")
@@ -262,9 +263,10 @@ def process_CityTemper_data(spark, input_data):
 	# Handle with Duplicated
 	print(" \n Row number of  Temperature dfS before drop_duplicates by 'dt' {} \n".format(dfS.count()))
 	print("Drop duplicate with subset 'dt' ... \n {}")
-	dfS=dfS.drop_duplicates(subset =['dt'])
+	dfS=dfS.drop_duplicates(subset =['City'])
 	# dfS.show(5)
-	print(" \n Row number of Temperature dfS after drop_duplicates by 'dt' {} \n".format(dfS.count()))
+	print(" \n Row number of Temperature dfS after drop_duplicates by 'City' {} \n".format(dfS.count()))
+	# by `dt`: 3167 
 
 
 	print("Loading data to table at here later ... ")
