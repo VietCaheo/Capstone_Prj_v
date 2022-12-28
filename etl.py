@@ -23,6 +23,7 @@ from schemas_assist.DataClean import cleaning_Immigra_data, \
 											cleaning_Airport_data, \
 											cleaning_CityTemper_data
 
+from schemas_assist.CreatTables import creat_D_DateTime
 
 
 # -----------------------------------------------------------------------------
@@ -117,6 +118,14 @@ def process_Immigra_data(spark, input_data):
 	print("\n Schema of Immigra_data ------------------------------------- \n")
 	dfS.printSchema()
 	dfS.show(3)
+
+	# ________vvv Debug ....________vvv Debug ....________vvv Debug ....________vvv Debug ....
+	print("Process creating Dimensional DateTime table here .... \n ")
+	creat_D_DateTime(dfS)
+
+	# ________vvv Debug ....________vvv Debug ....________vvv Debug ....________vvv Debug ....
+
+
 
 	print("\n Process basic cleaning data for Immigration datasets ...")
 	NaN_sublist=['i94cit']
@@ -270,7 +279,7 @@ def main():
 	# Step1 Explore Data and NaN + Duplicated check 
 	# Immigration datasets sas78dat files, due to large amount, NaN check will be done in processing multiple file below
 	# ---------------------------------------------
-	Check_NaN('temperature', input_CityTemper_data)
+	# Check_NaN('temperature', input_CityTemper_data)
 	# Check_NaN('uscity', input_UsCities_data)
 	# Check_NaN('airport', input_AirPort_data)
 
@@ -290,12 +299,15 @@ def main():
 	# for local read by Spark DataFrame
 	# Propotype want to build:  process_function(spark, input, output)
 
+
+
 	# To read the dataset using the PySpark 
 	process_Immigra_data(spark, input_Immig_data )
-	process_UsCities_data(spark, input_UsCities_data )
+
+""" 	process_UsCities_data(spark, input_UsCities_data )
 
 	process_AirPort_data(spark, input_AirPort_data )
-	process_CityTemper_data(spark, input_CityTemper_data )
+	process_CityTemper_data(spark, input_CityTemper_data ) """
 
 	# Step 4: Run Pipelines to Model the Data
 	# ---------------------------------------------
