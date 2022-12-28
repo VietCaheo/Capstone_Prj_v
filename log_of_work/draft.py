@@ -1,3 +1,12 @@
+# -------------------------------------------------------
+# dealing with datetime converting from sas datafile
+# https://knowledge.udacity.com/questions/741863
+get_date = udf(lambda x: (dt.datetime(1960, 1, 1).date() + dt.timedelta(float(x))).isoformat() if x else None)
+df_Immigration = df_Immigration.withColumn("arrdate", get_date(df_Immigration.arrdate))
+df_Immigration = df_Immigration.withColumn("depdate", get_date(df_Immigration.depdate))
+
+# -------------------------------------------------------
+
 # drop duplicated: 
 dropDisDF = df.dropDuplicates(["department","salary"])
 

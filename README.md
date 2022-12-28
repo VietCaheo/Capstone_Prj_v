@@ -155,7 +155,15 @@ Identify data quality issues:
         question about choose storage
         https://knowledge.udacity.com/questions/672002
 
-    -> Concept about PartitionBy when loading in dataLake Model
+    -> Concept about PartitionBy when loading in dataLake Model:
+    https://sparkbyexamples.com/pyspark/pyspark-partitionby-example/
+     Should choose partition param with more general
+
+     -> dealing with datetime in sas data:
+     https://knowledge.udacity.com/questions/741863
+
+     -> dataset issue with i94port and airport/local_code:
+     https://knowledge.udacity.com/questions/613179
 
 
 ################################################################

@@ -105,9 +105,9 @@ def process_Immigra_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(3)
 
+	# cleaning -----------------------------------------------------------------------------------
 	print("\n show NaN values in dfS of Immigra_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
-
 
 	# Handle with NaN
 	print("\n Droping NaN values here prior to  load to tables ... \n")
@@ -130,6 +130,7 @@ def process_Immigra_data(spark, input_data):
 	dfS.drop_duplicates(["cicid"])
 	# dfS.show(3)
 	print("\n Number of Immigra after drop_duplicates {} \n".format(dfS.count()))
+	# cleaning -----------------------------------------------------------------------------------
 
 
 	print("Loading data to table later ... ")
@@ -155,6 +156,7 @@ def process_UsCities_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
+	# cleaning -----------------------------------------------------------------------------------
 	print("\n to show NaN values in dfS of UsCities_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
@@ -170,6 +172,8 @@ def process_UsCities_data(spark, input_data):
 	dfS=dfS.drop_duplicates(subset =['City'])
 	dfS.show(3)
 	print("\n Rows numbers in UsCities after drop_duplicates {} \n".format(dfS.count()))
+	# cleaning -----------------------------------------------------------------------------------
+
 
 	# before write parquet, rename invalid characters in column name
 	dfS = dfS.select([col(c).alias(
@@ -203,6 +207,7 @@ def process_AirPort_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
+	# cleaning -----------------------------------------------------------------------------------
 	print("\n to show NaN values in dfS of AirPort_data...")
 	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 	
@@ -216,6 +221,7 @@ def process_AirPort_data(spark, input_data):
 	dfS=dfS.drop_duplicates(subset = ['ident', 'name'])
 	# dfS.show(5)
 	print(" \n Rows number of AirPort dfS after drop_duplicates by 'ident', 'name' {} \n".format(dfS.count()))
+	# cleaning -----------------------------------------------------------------------------------
 
 
 	print("\n Writing and Reading Parquet files for dfS Airport partitionBy iso_country... \n")
@@ -237,7 +243,7 @@ def process_CityTemper_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-	
+	# cleaning -----------------------------------------------------------------------------------
 	print("\n to show NaN values in dfS of CityTemper_data...")
 	# dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
@@ -267,6 +273,7 @@ def process_CityTemper_data(spark, input_data):
 	# dfS.show(5)
 	print(" \n Row number of Temperature dfS after drop_duplicates by 'City' {} \n".format(dfS.count()))
 	# by `dt`: 3167 
+	# cleaning -----------------------------------------------------------------------------------
 
 
 	print("Loading data to table at here later ... ")
