@@ -10,13 +10,20 @@ import pyspark.sql.functions as f
 
 # to check NaN for SparkDF
 # from pyspark.sql.functions import isnan, when, count, col
+from pyspark.sql.functions import count, col
 
 import os
 from os import listdir
 from os.path import isfile, join
 
 # Assistance functions
-from schemas_assist.schemas_assist import cleaning_Immigra_data 
+from schemas_assist.DataClean import cleaning_Immigra_data, \
+											cleaning_Dim_Immigra, \
+											cleaning_UsCities_data, \
+											cleaning_Airport_data, \
+											cleaning_CityTemper_data
+
+
 
 # -----------------------------------------------------------------------------
 #  To read dase sets file by PySpark, to use PySpark.sql and functions later
@@ -90,28 +97,30 @@ def process_Immigra_data(spark, input_data):
 
 	# To union all files in Immigration data files path
 	def unionAll(*dfs):
-	    return reduce(DataFrame.unionAll, dfs)
+		return reduce(DataFrame.unionAll, dfs)
 
 	i = 0
 	print("\n To see accumulating df.count for 12 data files .... \n")
 	for file in files:
-	    if(i==0):
-	        dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
-	        cols= dfS.columns
-	        print(dfS.count())
-	    if(i>0):
-	        dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
-	        print(dfS.count())
-	    if(i==1): 
-	        break
-	    i = i+1
+		if(i==0):
+			dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
+			cols= dfS.columns
+			print(dfS.count())
+		if(i>0):
+			dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
+			print(dfS.count())
+		if(i==1): 
+			break
+		i = i+1
 
 	print("\n Schema of Immigra_data ------------------------------------- \n")
 	dfS.printSchema()
 	dfS.show(3)
 
-	print("\n Basic handling NaN and Duplicated values in Immigration datasets ...")
-	cleaning_Immigra_data(dfS)
+	print("\n Process basic cleaning data for Immigration datasets ...")
+	NaN_sublist=['i94cit']
+	Dub_sublist=['cicid']
+	dfS = cleaning_Immigra_data(dfS, NaN_sublist, Dub_sublist)
 
 
 	print("Loading data to table later ... ")
@@ -122,11 +131,12 @@ def process_Immigra_data(spark, input_data):
 	# Write parquet of Fact_Immigrant table
 	# 
 
-
 	# droping more NaN in detail information, prior to loading to  D_Immigrant_detail
-	# immagine people withou citizenship and flight number info will be rejected to investing more
-	detail_sublist = ['i94cit', 'fltno']
-	cleaning_Dim_Immigra(dfS, [])
+	print("\n Droping NaN values for Dim Immigration detail info ... \n")
+
+	# people without citizenship and flight number info will be rejected to investing more
+	# NaN_sublist = ['fltno']
+	dfS = cleaning_Dim_Immigra(dfS, NaN_subset = ['fltno'])
 
 
 	# creat dimensional table D_Immigrant_detail
@@ -140,9 +150,9 @@ def process_Immigra_data(spark, input_data):
 
 	# print("\n Writing and Reading Parquet partitionBy `i94yr`... \n")
 	# dfS.write\
-	#    .mode('overwrite')\
-	#    .partitionBy('i94yr')\
-	#    .parquet("sas_data1")
+	#	.mode('overwrite')\
+	#	.partitionBy('i94yr')\
+	#	.parquet("sas_data1")
 	# dfS=spark.read.parquet("sas_data1")
 
 # end of process_Immigra_data(xxx)
@@ -157,23 +167,9 @@ def process_UsCities_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-	# cleaning -----------------------------------------------------------------------------------
-	print("\n to show NaN values in dfS of UsCities_data...")
-	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
-
-	# Handle with NaN
-	# Number of NaN value in this UsCities is small, and no need to drop
-	# Some important field no NaN are: City/ State/ State Code/ 
-
-	# Handle with Duplicated
-	# Make sure `City` is unique for this Df
-	print("----------------------------------------------------------------------------")
-	print("\n Rows number in UsCities before drop_duplicates {} \n".format(dfS.count()))
-	print("Drop duplicated with subset 'City' ...  \n")
-	dfS=dfS.drop_duplicates(subset =['City'])
-	dfS.show(3)
-	print("\n Rows numbers in UsCities after drop_duplicates {} \n".format(dfS.count()))
-	# cleaning -----------------------------------------------------------------------------------
+	
+	# UsCities consider no need to do NaN drop
+	dfS = cleaning_UsCities_data(dfS, Dup_subset=['City'])
 
 
 	# before write parquet, rename invalid characters in column name
@@ -192,9 +188,9 @@ def process_UsCities_data(spark, input_data):
 	# print("Writing and Reading Parquet files for dfS_UsCities : partitionBy 'Race' ... \n")
 	# Using City and State Code as the key
 	# dfS.write\
-	#    .mode('overwrite')\
-	#    .partitionBy('Race')\
-	#    .parquet("USCities_data2")
+	#	.mode('overwrite')\
+	#	.partitionBy('Race')\
+	#	.parquet("USCities_data2")
 	# dfS=spark.read.parquet("USCities_data2")
 # ---------------------------------------------------------------
 def process_AirPort_data(spark, input_data):
@@ -206,28 +202,14 @@ def process_AirPort_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-	# cleaning -----------------------------------------------------------------------------------
-	print("\n to show NaN values in dfS of AirPort_data...")
-	dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
-	
-	# Handle with NaN - consider no drop NaN for Airport, 
-	# We have `ident`/ iso_country/ iso_region/ or coordinates are no NaN
-
-	# Handle with Duplicated
-	# Drop duplicated with `ident` and `municipality`
-	print("\n Rows number of AirPort dfS before drop_duplicates by 'ident', 'name' {} \n".format(dfS.count()))
-	print("Drop duplicate with subset 'ident', 'name' ... \n {}")
-	dfS=dfS.drop_duplicates(subset = ['ident', 'name'])
-	# dfS.show(5)
-	print(" \n Rows number of AirPort dfS after drop_duplicates by 'ident', 'name' {} \n".format(dfS.count()))
-	# cleaning -----------------------------------------------------------------------------------
+	dfS = cleaning_Airport_data(dfS, Dup_subset=['ident', 'name'])
 
 
 	# print("\n Writing and Reading Parquet files for dfS Airport partitionBy iso_country... \n")
 	# dfS.write\
-	#    .mode('overwrite')\
-	#    .partitionBy('iso_country')\
-	#    .parquet("Airport_data2")
+	#	.mode('overwrite')\
+	#	.partitionBy('iso_country')\
+	#	.parquet("Airport_data2")
 	# dfS=spark.read.parquet("Airport_data2")
 # -----------------------------------------------------------------------------
 def process_CityTemper_data(spark, input_data):
@@ -240,52 +222,23 @@ def process_CityTemper_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-	# cleaning -----------------------------------------------------------------------------------
-	print("\n to show NaN values in dfS of CityTemper_data...")
-	# dfS.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in dfS.columns]).show()
 
-	# TempData include timestamp type, need dedicated check 
-	dfS.select(*[
-	(
-		f.count(f.when((f.isnan(c) | f.col(c).isNull()), c)) if t not in ("timestamp", "date")
-		else f.count(f.when(f.col(c).isNull(), c))
-	).alias(c)
-	for c, t in dfS.dtypes if c in dfS.columns]).show()
-
-
-	# Handle with NaN
-	print("Temperature Df drop all row with blank `AverageTemperature`... \n")
-
-	# PySpark dfS.count() will count all row include NaN
-	NaNcount = dfS.count() - dfS.dropna(how='any', subset=['AverageTemperature']).count()
-	print("How many NaN values in Temperature dfS ... {}".format(NaNcount))
-	print("Droping NaN for Temperature Schema: dfS ... \n")
-	dfS = dfS.dropna(how='any', subset=['AverageTemperature'])
-
-
-	# Handle with Duplicated
-	print(" \n Row number of  Temperature dfS before drop_duplicates by 'dt' {} \n".format(dfS.count()))
-	print("Drop duplicate with subset 'dt' ... \n {}")
-	dfS=dfS.drop_duplicates(subset =['City'])
-	# dfS.show(5)
-	print(" \n Row number of Temperature dfS after drop_duplicates by 'City' {} \n".format(dfS.count()))
-	# by `dt`: 3167 
-	# cleaning -----------------------------------------------------------------------------------
+	dfS = cleaning_CityTemper_data(dfS, NaN_subset=['AverageTemperature'], Dup_subset=['City'])
 
 
 	print("Loading data to table at here later ... ")
 	
 	# print("Writing and Reading Parquet partitionBy `Country` ... \n")
 	# dfS.write\
-	#    .mode('overwrite')\
-	#    .partitionBy('Country')\
-	#    .parquet("Temp_data2")
+	#	.mode('overwrite')\
+	#	.partitionBy('Country')\
+	#	.parquet("Temp_data2")
 	# dfS=spark.read.parquet("Temp_data2")
 # -----------------------------------------------------------------------------
+# Step 3: Define the Data Model: Done by Schema diagram and Desciption in Jupyter NoteBook
 
-# Step 3: Define the Data Model
 
-
+# -----------------------------------------------------------------------------
 # Step 4: Run Pipelines to Model the Data 
 ## 4.1 Create the data model
 
