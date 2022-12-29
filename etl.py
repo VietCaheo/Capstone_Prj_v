@@ -16,12 +16,16 @@ import os
 from os import listdir
 from os.path import isfile, join
 
+# TO GET
+# import sqlContext.implicits._
+
 # Assistance functions
 from schemas_assist.DataClean import cleaning_Immigra_data, \
                                             cleaning_Dim_Immigra, \
                                             cleaning_UsCities_data, \
                                             cleaning_Airport_data, \
                                             cleaning_CityTemper_data
+from schemas_assist.DataClean import extract_CityName
 
 from schemas_assist.CreatTables import creat_D_DateTime, \
                                         creat_D_Immigrant_detail
@@ -39,35 +43,36 @@ def create_spark_session():
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
 # Step 1: Scope the Project and Gather Data
-def Check_NaN(type, input_path):
+def Pd_Read_datasets(type, input_path):
     """ Explore dataset by pandas df and check NaN values and Duplicated if needed.
     """
     if type == 'temperature':
+        print("pd reading data set temperature ... \n")
         df= pd.read_csv(input_path)
-        print("\n to see first 05 rows of Temperature df ... \n")
-        print("temperature --------------------------------\n")
-        print(df.head(3))
-        print("-----------------------------------------\n")
+        # print(df.head(3))
 
         print("\n to check NaN values for entry Temperature df ... \n")
         print(df.isnull().sum())
 
+    cities_name = []
     if type == 'uscity':
-        df = pd.read_csv(input_path, header=None, encoding="utf-8", sep=";")
-        print("\n to see first 2 rows in df_UsCities ... \n")
-        print("uscity --------------------------------\n")
-        print(df.head(3))
-        print("-----------------------------------------\n")
+        print("pd reading data set uscity ... \n")
+        df = pd.read_csv(input_path, encoding="utf-8", sep=";")
+        # print(df.head(3))
+
+        cities_name = df["City"].unique()
+        # print("to see list city name ... {}".format(cities_name))
+        print("to see how many city name without duplicate {}".format(len(cities_name)))
+
+        return cities_name
 
         # print("\n to check NaN values for entry df_UsCities ... \n")
         # print(df.isnull().sum())
     
     if type == 'airport':
+        print("pd reading data set airport ... \n")
         df= pd.read_csv(input_path, header=None, encoding="utf-8")
-        print("\n to see first 2 rows in df_Airport ... \n")
-        print("airport --------------------------------\n")
-        print(df.head(3))
-        print("-----------------------------------------\n")
+        # print(df.head(3))
 
         # print("\n to check NaN values for entry df_Airport ... \n")
         # print(df.isnull().sum())
@@ -181,6 +186,10 @@ def process_Immigra_data(spark, input_data):
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
 def process_UsCities_data(spark, input_data):
+    """ Process us-cities data file for get dataframe for each city information.
+        auxiliary result is get list of city name
+
+     """
 
     # dfS = spark.read.csv(input_data, sep=";")
     dfS = spark.read.options(header='True', inferSchema='True')\
@@ -248,23 +257,8 @@ def process_CityTemper_data(spark, input_data):
 
     print("Loading data to table at here later ... ")
 # -----------------------------------------------------------------------------
-def extract_CityName(input_file):
-    """ Extract city name from SAS_Labels_Description file.
-    i94Port seems like airport-code that use only for sas system, need to extract cityname from that.
-    input: SAS_Labels_Description file
-    output: a dataframe consists of `CityName` `StateCode`. This output will be use for joining dataset later between:
-        Immigration-data vs us-cites dataframe 
-        Immigration-data vs Airport dataframe
-    Note: not all i94Port contains city name, some only air-port name.
-    """
 
-    # Read the sas file line by line
-    f = open(input_file, 'r')
-    Lines  = f.readlines(33)
-
-    print("Debug read sas Labels files................ \n")
-    print("Type of lines is  {}".format(type(Lines)))
-    print(Lines)
+# -----------------------------------------------------------------------------
 
 
 
@@ -282,12 +276,6 @@ def extract_CityName(input_file):
 def main():
     spark = create_spark_session()
 
-    # In case need to staging, save target table in S3, Redshift, need to define as input, output here also
-    # input_data = 
-    # to staging parquets file of each table into S3 
-    # output_data = "s3a://viet-datalake-bucket/"
-    
-
     # 12 files of Immigration Datasets, consider to limit data when run test for time saving
     input_Immig_data= '../../data/18-83510-I94-Data-2016'
     input_UsCities_data = './us-cities-demographics.csv'
@@ -295,42 +283,38 @@ def main():
 
     # This file with more than 1mil rows
     input_CityTemper_data ='../../data2/GlobalLandTemperaturesByCity.csv'
-
     i94_sas_Labels_Descriptions = './I94_SAS_Labels_Descriptions.SAS'
 
 
-    # Step1 Explore Data and NaN + Duplicated check 
-    # Immigration datasets sas78dat files, due to large amount, NaN check will be done in processing multiple file below
-    # ---------------------------------------------
-    # Check_NaN('temperature', input_CityTemper_data)
-    # Check_NaN('uscity', input_UsCities_data)
-    # Check_NaN('airport', input_AirPort_data)
+    org_cities_name = []
+    std_cities_name = []
+    #  Need to process us-cites data firstly, to get list of standard city name
+    org_cities_name = Pd_Read_datasets('uscity', input_UsCities_data)
 
 
-    # Step2: Do write up the doc in Jupiter NoteBook
-    # ---------------------------------------------
+    for city in org_cities_name:
+        # city = city.replace(" ", "").upper()
+        city = city.upper()
+        std_cities_name.append(city)
 
-    # Step3: Build a complete ETL process
-    # ---------------------------------------------
-        # Load data file from data set
-        # Cleaning data : NaN and duplicated if need
-        # Loading data to target tables
-        # Write spark parquet files
-
-    # for local read by Spark DataFrame
-    # Propotype want to build:  process_function(spark, input, output)
+    print("to check some ele after remove space and make upper() ... \n {} \n {} \n {}".format(std_cities_name[0], std_cities_name[3], std_cities_name[2]))
+    # std_cities_name looks like [SILVERSPRING, RANCHOCUCAMONGA, ...], use it for city name look-up in extract_CityName as W1
 
     # Process the Labels_Descriptions file
     print("starting process the SAS labels file  ... ... tempo test with only read line by line the file \n")
-    # city_state_df = extract_CityName(i94_sas_Labels_Descriptions)
-    extract_CityName(i94_sas_Labels_Descriptions)
 
+    # W1: try lookup by independent list: std_cities_name  extract_CityName(i94_sas_Labels_Descriptions, std_cities_name) ??
 
+    # W2: Create a df from sas_Labels_Description: and use this df for sql join later
+    # use PortCityState_df as input of next step process main datafiles and creat tables
+    PortCityState_df = extract_CityName(i94_sas_Labels_Descriptions)
+
+    
     # Process one by one data set source file for ETL
-    """ process_Immigra_data(spark, input_Immig_data )
+    # process_Immigra_data(spark, input_Immig_data, PortCityState_df )
 
-    process_UsCities_data(spark, input_UsCities_data )
-
+    """
+        process_UsCities_data(spark, input_UsCities_data )
     process_AirPort_data(spark, input_AirPort_data )
     process_CityTemper_data(spark, input_CityTemper_data ) """
 

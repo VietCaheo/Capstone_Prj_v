@@ -3,12 +3,105 @@
     + Handling  specified case in data
 """
 
+import pandas as pd
 import pyspark.sql.functions as f
-
 # to check NaN for SparkDF
 from pyspark.sql.functions import isnan, when, count, col
 
-#__________vv__________vv__________vv__________vv
+
+
+# _____________vvv_____________vvv_____________vvv_____________vvv_____________vvv
+def extract_CityName(input_file):
+    """ in SAS_Labels_Description file: i94Port seems like private-airport-code, need to extract cityname from that.
+    input: SAS_Labels_Description file
+    output: a dataframe consists of `PortCode`; `CityName`; `StateCode`. This output will be use for joining dataset later between:
+        Immigration-data vs us-cites dataframe 
+        Immigration-data vs Airport dataframe
+    Note: not all i94Port contains city name, some only air-port name.
+    """
+
+    # Read the sas file line by line
+    f = open(input_file, 'r')
+    Lines  = f.readlines()
+
+    print("Debug read sas Labels files................ \n")
+    print("Type of lines is  {}".format(type(Lines)))
+    
+    # print("just to see the type each line 348 {}".format(type(Lines[348])))
+    #  it is str
+
+
+    # i94Port got from line 303 to line 893, ignore another missing city_name
+    sas_portcode = Lines[303:893]
+    
+    # These independent lists for check inside sas_labels file and debug
+    portcode_list = []
+    city_list= []
+    statecode_list= []
+
+    # make a common list for stick i94PortCode - CityName - StateCode
+    # From this, build a dataframe include 3 above columns
+    PortCityState = []
+
+
+    # loop = 0
+    for line in sas_portcode:
+        s_line = line.strip()
+        s_line = line.split("=")
+
+        # append for portcode list
+        PortCode = s_line[0].strip().replace("'","")
+
+        # avoid duplicate if have
+        if PortCode not in portcode_list:
+            portcode_list.append(PortCode)
+
+
+        s_line[1] = s_line[1].strip().replace("'","")
+
+        
+        City_and_State = s_line[1].split(",")
+        # print("check s_line[1] after split by comma {} type {}".format(City_and_State, type(City_and_State)))
+
+        # print("to check info in state_code part {} ".format(City_and_State[1]))
+        
+        # s_line[1] dedicate check only case with format 'city_name, STATE_CODE'
+        if ((len(City_and_State)) >= 2):
+            City = City_and_State[0].strip().replace("'","")
+
+            # avoid duplicated adding 
+            if City not in city_list:
+                city_list.append(City)
+
+            StateCode = City_and_State[1].strip().replace("'","") 
+            if StateCode not in statecode_list:
+                statecode_list.append(StateCode)
+        else:
+            City = 'UnknownCity'
+            StateCode = 'UnknownState'
+        
+        PortCityState.append([PortCode, City, StateCode])
+
+        # loop += 1
+        # if loop == 50:
+        #     break
+
+    columnsList = ['PortCode', 'CityName', 'StateCode']
+    # make a pd dataframe for mapping above
+    PortCityState_df = pd.DataFrame(PortCityState, columns=columnsList)
+
+    # to check indepent list
+    # print("How many portcode list {} \n; citylist {} \n; statecode {}".format(len(portcode_list), len(city_list), len(statecode_list)))
+    # print("to check portcode list {} \n; citylist {} \n; statecode {}".format(portcode_list, city_list, statecode_list))
+
+    # print("To check the list Port-City-State: {}".format(PortCityState))
+    print("To check PortCityState_df :")
+    print(PortCityState_df.head(5))
+    print(PortCityState_df.count())
+
+    return PortCityState_df
+
+# _____________vvv_____________vvv_____________vvv_____________vvv_____________vvv
 # Basic clean prior to loading to Fact table
 def cleaning_Immigra_data(dfS, NaN_subset=[], Dup_subset=[]):
     """ Do Data Cleaning for Immigration datasets.

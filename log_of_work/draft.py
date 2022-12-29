@@ -1,4 +1,16 @@
 # -------------------------------------------------------
+    for s in split:
+        print("see each type of s ...{}".format(type(s)))
+        # s.trip("'")
+        print(s.replace("'",""))
+        print()
+        # Lines[303].split("=")
+
+    split2 = split[1].split(",")
+    for s in split2:
+        print("see seconde split {}".format(s.strip().replace("'","")))
+
+# -------------------------------------------------------
 # dealing with datetime converting from sas datafile
 # https://knowledge.udacity.com/questions/741863
 

@@ -229,11 +229,39 @@ Use data lake model to leverage:
 #  use the read csv by pandas
 #  Check NaN in df of Temerature
 
-# print("to see NaN value in interest columns of df_Temper... \n")
-# NaN_dt=df_Temper['dt'].isna().sum()
-# print("NaN value number of column dt is: {} \n".format(NaN_dt))
-
+print("to see NaN value in interest columns of df_Temper... \n")
+NaN_dt=df_Temper['dt'].isna().sum()
+print("NaN value number of column dt is: {} \n".format(NaN_dt))
 ##############################################################################
+<!--  Code line for using AWS for staging and loading -->
+In case need to staging, save target table in S3, Redshift, need to define as input, output here also
+input_data = 
+to staging parquets file of each table into S3 
+output_data = "s3a://viet-datalake-bucket/"
+##############################################################################
+<!-- Steps note from main() -->
+# Step1 Explore Data and NaN + Duplicated check 
+    # Immigration datasets sas78dat files, due to large amount, NaN check will be done in processing multiple file below
+    # ---------------------------------------------
+    # Pd_Read_datasets('temperature', input_CityTemper_data)
+    # Pd_Read_datasets('uscity', input_UsCities_data)
+    # Pd_Read_datasets('airport', input_AirPort_data)
+
+
+    # Step2: Do write up the doc in Jupiter NoteBook
+    # ---------------------------------------------
+
+    # Step3: Build a complete ETL process
+    # ---------------------------------------------
+        # Load data file from data set
+        # Cleaning data : NaN and duplicated if need
+        # Loading data to target tables
+        # Write spark parquet files
+
+    # for local read by Spark DataFrame
+    # Propotype want to build:  process_function(spark, input, output)
+##############################################################################
+
 <!-- Improment points -->
 -> Dealing with Co-ordinates value in Airport and Temperature data
 -> making main() with interact in console for selecting run-time mode (Ex. Switching or Enable/Disable for show NaN value in DataFrame by pandas df or show in Pyspark Schema)
