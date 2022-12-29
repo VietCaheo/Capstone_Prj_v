@@ -248,6 +248,27 @@ def process_CityTemper_data(spark, input_data):
 
 	print("Loading data to table at here later ... ")
 # -----------------------------------------------------------------------------
+def extract_CityName(input_file):
+	""" Extract city name from SAS_Labels_Description file.
+	i94Port seems like airport-code that use only for sas system, need to extract cityname from that.
+	input: SAS_Labels_Description file
+	output: a dataframe consists of `CityName` `StateCode`. This output will be use for joining dataset later between:
+		Immigration-data vs us-cites dataframe 
+		Immigration-data vs Airport dataframe
+	Note: not all i94Port contains city name, some only air-port name.
+	"""
+
+	# Read the sas file line by line
+	f = open(input_file, 'r')
+	Lines  = f.readlines(33)
+
+	print("Debug read sas Labels files................ \n")
+	print("Type of lines is  {}".format(type(Lines)))
+	print(Lines)
+
+
+
+# -----------------------------------------------------------------------------
 # Step 3: Define the Data Model: Done by Schema diagram and Desciption in Jupyter NoteBook
 
 # -----------------------------------------------------------------------------
@@ -269,13 +290,13 @@ def main():
 
 	# 12 files of Immigration Datasets, consider to limit data when run test for time saving
 	input_Immig_data= '../../data/18-83510-I94-Data-2016'
-
-	# another datasets by signle file
 	input_UsCities_data = './us-cities-demographics.csv'
 	input_AirPort_data  = './airport-codes_csv.csv'
 
 	# This file with more than 1mil rows
 	input_CityTemper_data ='../../data2/GlobalLandTemperaturesByCity.csv'
+
+	i94_sas_Labels_Descriptions = './I94_SAS_Labels_Descriptions.SAS'
 
 
 	# Step1 Explore Data and NaN + Duplicated check 
@@ -299,11 +320,16 @@ def main():
 	# for local read by Spark DataFrame
 	# Propotype want to build:  process_function(spark, input, output)
 
+	# Process the Labels_Descriptions file
+	print("starting process the SAS labels file  ... ... tempo test with only read line by line the file \n")
+	# city_state_df = extract_CityName(i94_sas_Labels_Descriptions)
+	extract_CityName(i94_sas_Labels_Descriptions)
+
 
 	# Process one by one data set source file for ETL
-	process_Immigra_data(spark, input_Immig_data )
+	""" process_Immigra_data(spark, input_Immig_data )
 
-""" 	process_UsCities_data(spark, input_UsCities_data )
+	process_UsCities_data(spark, input_UsCities_data )
 
 	process_AirPort_data(spark, input_AirPort_data )
 	process_CityTemper_data(spark, input_CityTemper_data ) """

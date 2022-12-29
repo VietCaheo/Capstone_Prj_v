@@ -237,3 +237,12 @@ Use data lake model to leverage:
 <!-- Improment points -->
 -> Dealing with Co-ordinates value in Airport and Temperature data
 -> making main() with interact in console for selecting run-time mode (Ex. Switching or Enable/Disable for show NaN value in DataFrame by pandas df or show in Pyspark Schema)
+################################################
+<!-- Solution for joining datasets -->
+-> using city_code: from
+    + "state name" + "state code": from SAS_Labels_Description
+    + i94port (from sas): include "port name base-on-city" + "state code"                       (typical raw format: 'SPRINGFIELD-BRANSON, MO')
+    + "city" + "state" +"state Code" (from us-cities-demographics)                                          (typical raw format: Santa Clara; California; CA)
+    + "municipality" + "iso_region" (from air_port):                                            (typical raw format: US-MN  +  Garfield Heights)
+
+--> extract from above info to get df with ("city name"; "state code")
