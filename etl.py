@@ -1,5 +1,3 @@
-# etl
-
 # Do all imports and installs here
 import pandas as pd
 from pyspark.sql import SparkSession
@@ -28,7 +26,12 @@ from schemas_assist.DataClean import cleaning_Immigra_data, \
 from schemas_assist.DataClean import extract_CityName
 
 from schemas_assist.CreatTables import creat_D_DateTime, \
-                                        creat_D_Immigrant_detail
+                                        creat_D_Immigrant_detail, \
+                                        creat_Fact_Immigrant, \
+                                        creat_D_USCities, \
+                                        creat_D_Airport
+
+
 
 # -----------------------------------------------------------------------------
 #  To read dase sets file by PySpark, to use PySpark.sql and functions later
@@ -45,6 +48,7 @@ def create_spark_session():
 # Step 1: Scope the Project and Gather Data
 def Pd_Read_datasets(type, input_path):
     """ Explore dataset by pandas df and check NaN values and Duplicated if needed.
+    This function almost for explore datasets and check number NaN and duplicated value
     """
     if type == 'temperature':
         print("pd reading data set temperature ... \n")
@@ -119,8 +123,11 @@ def MultipleRead_sas_files(spark, input_da_path, file_to_load=1):
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
 def process_Immigra_data(spark, input_data):
-    """ Function use to read all 12 sas7bat data files of Immigration datasets.
-    Loading data files, check NaN and duplicate value, do cleaning data, and Loading into target table
+    """ Function use to do as ETL sequences for tables: Fact_Immigrant; D_Immigrant_detail; D_DateTime
+        -> Read data sets to build schema
+        -> Implement data cleaning (if needed)
+        -> Write to parquet files
+        -> Read parquet for verification.
     """
 
     sas_files_toload = 1
@@ -128,44 +135,45 @@ def process_Immigra_data(spark, input_data):
     # Run test only first file for saving run time
     dfS = MultipleRead_sas_files(spark, input_data, sas_files_toload)
 
-    print("\n Schema of Immigra_data ------------------------------------- \n")
+    print("\n Schema of staging Immigra_data ------------------------------------- \n")
     dfS.printSchema()
     dfS.show(5)
 
-    print("Process creating Dimensional DateTime table here .... \n ")
+    print("\n Loading data to table .... \n")
     D_DateTime_table = creat_D_DateTime(dfS)
-    D_DateTime_table.printSchema()
-    D_DateTime_table.show()
 
     print("\n Write parquet of D_DateTime_table table  ... ... \n")
     D_DateTime_table.write \
                       .mode('overwrite') \
-                      .partitionBy('Year') \
+                      .partitionBy('ArriveYear') \
                       .parquet("D_DateTime_table_par")
     D_DateTime_table=spark.read.parquet("D_DateTime_table_par")
-    print("\n Finished writing parquet of D_DateTime_table")
+    print("Finished writing parquet of D_DateTime_table \n")
 
-    # Start data cleaning
+    # Filter list is depend on user's purpose in future use-case
     print("\n Process basic cleaning data before load to Fact_Immigrant table  ...")
     NaN_sublist=['i94cit']
     Dup_sublist=['cicid']
     dfS = cleaning_Immigra_data(dfS, NaN_sublist, Dup_sublist)
 
-    print("Loading data to table later ... ")
-    # creat fact table Fact_Immigrant 
-    # Fact_Immigrant_table = ...
+    print("\n Loading data to table .... \n")
+    Fact_Immigrant_table = creat_Fact_Immigrant(dfS)
 
-    # Write parquet of Fact_Immigrant table
-    # 
+    print("Writing parquet files for Fact_Immigrant_table ... \n")
+    Fact_Immigrant_table.write \
+                        .mode('overwrite') \
+                        .partitionBy('VisaType') \
+                        .parquet("Fact_Immigrant_table_par")
+    Fact_Immigrant_table=spark.read.parquet("Fact_Immigrant_table_par")
 
-    # droping more NaN in detail information, prior to loading to  D_Immigrant_detail
+    
+    # Do more cleaning Data Dim_table of Immigration info
     print("\n Droping NaN values for Dim Immigration detail info ... \n")
     dfS = cleaning_Dim_Immigra(dfS, NaN_subset = ['fltno'])
 
-    # creat dimensional table D_Immigrant_detail
+    print("\n Loading data to table .... \n")
     D_Immigrant_detail_table = creat_D_Immigrant_detail(dfS)
-    D_Immigrant_detail_table.printSchema()
-    D_Immigrant_detail_table.show()
+
     
     # Write parquet of D_Immigrant_detail table
     # Immigrant_detail_table_par
@@ -175,73 +183,73 @@ def process_Immigra_data(spark, input_data):
                               .parquet("Immigrant_detail_table_par")
     D_Immigrant_detail_table=spark.read.parquet("Immigrant_detail_table_par")
 
-    # print("\n Writing and Reading Parquet partitionBy `i94yr`... \n")
-    # dfS.write\
-    #    .mode('overwrite')\
-    #    .partitionBy('i94yr')\
-    #    .parquet("sas_data1")
-    # dfS=spark.read.parquet("sas_data1")
-
-# end of process_Immigra_data(xxx)
+    print("Finished the process for Immigration Data ... \n")
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
-def process_UsCities_data(spark, input_data):
+def process_UsCities_data(spark, input_data, port_mapto_city):
     """ Process us-cities data file for get dataframe for each city information.
-        auxiliary result is get list of city name
-
-     """
+    """
 
     # dfS = spark.read.csv(input_data, sep=";")
     dfS = spark.read.options(header='True', inferSchema='True')\
                     .csv(input_data, sep=";")
 
-    print("Schema of UsCities ------------------------------------------ \n")
+    print("Schema of staging UsCities ..... \n")
     dfS.printSchema()
-    dfS.show(2)
+    dfS.show(3)
 
     # UsCities consider no need to do NaN drop
     dfS = cleaning_UsCities_data(dfS, Dup_subset=['City'])
 
-    # before write parquet, rename invalid characters in column name
-    dfS = dfS.select([col(c).alias(
-        c.replace( '(', '')
-        .replace( ')', '')
-        .replace( ',', '')
-        .replace( ';', '')
-        .replace( '{', '')
-        .replace( '}', '')
-        .replace( '\n', '')
-        .replace( '\t', '')
-        .replace( ' ', '_')
-    ) for c in dfS.columns])
+    print("\n Loading data to table .... \n")
+    D_USCities_table = creat_D_USCities(spark, dfS, port_mapto_city)
 
-    # print("Writing and Reading Parquet files for dfS_UsCities : partitionBy 'Race' ... \n")
-    # Using City and State Code as the key
-    # dfS.write\
-    #    .mode('overwrite')\
-    #    .partitionBy('Race')\
-    #    .parquet("USCities_data2")
-    # dfS=spark.read.parquet("USCities_data2")
+
+    print("Start Writing parquet files for D_USCities_table ... \n")
+    D_USCities_table.write \
+                        .mode('overwrite') \
+                        .partitionBy('StateCode') \
+                        .parquet("D_USCities_table_par")
+    D_USCities_table=spark.read.parquet("D_USCities_table_par")
+
+
+    # before write parquet, rename invalid characters in column name
+    # dfS = dfS.select([col(c).alias(
+    #     c.replace( '(', '')
+    #     .replace( ')', '')
+    #     .replace( ',', '')
+    #     .replace( ';', '')
+    #     .replace( '{', '')
+    #     .replace( '}', '')
+    #     .replace( '\n', '')
+    #     .replace( '\t', '')
+    #     .replace( ' ', '_')
+    # ) for c in dfS.columns])
+
+    print("Finished for us-cities data file.")
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
-def process_AirPort_data(spark, input_data):
+def process_AirPort_data(spark, input_data, port_mapto_city):
     
     dfS = spark.read.options(header='True', inferSchema='True')\
                     .csv(input_data)
 
-    print("\n Schema of dfS Airport --------------------------------------- \n")
+    print("\n Schema of staging Airport ----------------\n")
     dfS.printSchema()
-    dfS.show(2)
+    dfS.show(3)
 
     dfS = cleaning_Airport_data(dfS, Dup_subset=['ident', 'name'])
 
+    print("\n Loading data to table .... \n")
+    D_AirPort_table = creat_D_Airport(spark, dfS, port_mapto_city)
 
-    # print("\n Writing and Reading Parquet files for dfS Airport partitionBy iso_country... \n")
-    # dfS.write\
-    #    .mode('overwrite')\
-    #    .partitionBy('iso_country')\
-    #    .parquet("Airport_data2")
-    # dfS=spark.read.parquet("Airport_data2")
+
+    print("\n Writing and Reading Parquet files for dfS Airport ... ... \n")
+    D_AirPort_table.write\
+                   .mode('overwrite')\
+                   .partitionBy('Type')\
+                   .parquet("Airport_parquet")
+    D_AirPort_table=spark.read.parquet("Airport_parquet")
 # -----------------------------------------------------------------------------
 def process_CityTemper_data(spark, input_data):
 
@@ -249,23 +257,14 @@ def process_CityTemper_data(spark, input_data):
                     .csv(input_data)
     print("to see how many rows in  dfS.count: {}".format(dfS.count()))
     
-    print("\n Schema of dfS---------------------------------------------- \n")
+    print("\n Schema of staging Temp dfS-------------------------- \n")
     dfS.printSchema()
     dfS.show(2)
 
     dfS = cleaning_CityTemper_data(dfS, NaN_subset=['AverageTemperature'], Dup_subset=['City'])
 
     print("Loading data to table at here later ... ")
-# -----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-
-
-
-# -----------------------------------------------------------------------------
-# Step 3: Define the Data Model: Done by Schema diagram and Desciption in Jupyter NoteBook
-
-# -----------------------------------------------------------------------------
 # Step 4: Run Pipelines to Model the Data 
 ## 4.1 Create the data model
 
@@ -285,41 +284,44 @@ def main():
     input_CityTemper_data ='../../data2/GlobalLandTemperaturesByCity.csv'
     i94_sas_Labels_Descriptions = './I94_SAS_Labels_Descriptions.SAS'
 
+    # ---------------------------------------------------------------------------
+    # org_cities_name = []
+    # std_cities_name = []
 
-    org_cities_name = []
-    std_cities_name = []
-    #  Need to process us-cites data firstly, to get list of standard city name
-    org_cities_name = Pd_Read_datasets('uscity', input_UsCities_data)
+    # org_cities_name = Pd_Read_datasets('uscity', input_UsCities_data)
 
+    # for city in org_cities_name:
+    #     # city = city.replace(" ", "").upper()
+    #     city = city.upper()
+    #     std_cities_name.append(city)
 
-    for city in org_cities_name:
-        # city = city.replace(" ", "").upper()
-        city = city.upper()
-        std_cities_name.append(city)
-
-    print("to check some ele after remove space and make upper() ... \n {} \n {} \n {}".format(std_cities_name[0], std_cities_name[3], std_cities_name[2]))
+    # print("to check some ele after remove space and make upper() ... \n {} \n {} \n {}".format(std_cities_name[0], std_cities_name[3], std_cities_name[2]))
+    # ---------------------------------------------------------------------------
     # std_cities_name looks like [SILVERSPRING, RANCHOCUCAMONGA, ...], use it for city name look-up in extract_CityName as W1
 
     # Process the Labels_Descriptions file
-    print("starting process the SAS labels file  ... ... tempo test with only read line by line the file \n")
-
-    # W1: try lookup by independent list: std_cities_name  extract_CityName(i94_sas_Labels_Descriptions, std_cities_name) ??
-
-    # W2: Create a df from sas_Labels_Description: and use this df for sql join later
-    # use PortCityState_df as input of next step process main datafiles and creat tables
-    PortCityState_df = extract_CityName(i94_sas_Labels_Descriptions)
-
+    #  -> W1: try lookup by independent list: std_cities_name  extract_CityName(i94_sas_Labels_Descriptions, std_cities_name) !!
+    #  -> W2: Create a df from sas_Labels_Description: and use this df for sql join later
     
+    print("Start process the SAS labels Description file ... \n")
+    port_mapto_city = extract_CityName(i94_sas_Labels_Descriptions)
+
     # Process one by one data set source file for ETL
-    # process_Immigra_data(spark, input_Immig_data, PortCityState_df )
+    print("\n ----------------------------------------------------")
+    print("Start process the Immigration Data sas7dat ... \n")
+    process_Immigra_data(spark, input_Immig_data)
 
-    """
-        process_UsCities_data(spark, input_UsCities_data )
-    process_AirPort_data(spark, input_AirPort_data )
-    process_CityTemper_data(spark, input_CityTemper_data ) """
+    print("\n ----------------------------------------------------")
+    print("Start process the UsCities Demographic data ... \n")
+    process_UsCities_data(spark, input_UsCities_data, port_mapto_city)
 
-    # Step 4: Run Pipelines to Model the Data
-    # ---------------------------------------------
+    print("\n ----------------------------------------------------")
+    print("Start process the Airport data ... \n")
+    process_AirPort_data(spark, input_AirPort_data, port_mapto_city)
+
+    # print("\n ----------------------------------------------------")
+    # print("Start process the World Temperature data ... \n")
+    # process_CityTemper_data(spark, input_CityTemper_data )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Module DataClean to do auxilliary jobs before loading data to target tables such as:
     + Data cleaning
     + Handling  specified case in data
+    + Extract airport-code, us-city name, us-State-code from sas_Labels_Description file
 """
 
 import pandas as pd
@@ -56,15 +57,9 @@ def extract_CityName(input_file):
         if PortCode not in portcode_list:
             portcode_list.append(PortCode)
 
-
         s_line[1] = s_line[1].strip().replace("'","")
 
-        
         City_and_State = s_line[1].split(",")
-        # print("check s_line[1] after split by comma {} type {}".format(City_and_State, type(City_and_State)))
-
-        # print("to check info in state_code part {} ".format(City_and_State[1]))
-        
         # s_line[1] dedicate check only case with format 'city_name, STATE_CODE'
         if ((len(City_and_State)) >= 2):
             City = City_and_State[0].strip().replace("'","")
@@ -86,8 +81,8 @@ def extract_CityName(input_file):
         # if loop == 50:
         #     break
 
+	# This list will be come columns' name in sparkDF during creat D_USCities_table, D_Airport_table, D_Temperature
     columnsList = ['PortCode', 'CityName', 'StateCode']
-    # make a pd dataframe for mapping above
     PortCityState_df = pd.DataFrame(PortCityState, columns=columnsList)
 
     # to check indepent list
@@ -189,14 +184,13 @@ def cleaning_Airport_data(dfS, NaN_subset=[], Dup_subset=[]):
     
     # Handle with NaN - consider no drop NaN for Airport, 
     # We have `ident`/ iso_country/ iso_region/ or coordinates are no NaN
-    # This just let be here for future improment
 
 
     # Handle with Duplicated
     # Drop duplicated with `ident` and `municipality`
     print("\n Rows number of AirPort dfS before drop_duplicates with subset {} is : {} \n".format(Dup_subset, dfS.count()))
     
-    print("Drop duplicate with subset 'ident', 'name' ... \n {}")
+    print("Drop duplicate with subset {} \n".format(Dup_subset))
     cleaned_dfS = dfS.drop_duplicates(subset = Dup_subset)
     # dfS.show(5)
     print(" \n AirPort dfS after drop_duplicates with subset{} {} \n".format(Dup_subset, cleaned_dfS.count()))
