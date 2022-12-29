@@ -23,8 +23,8 @@ from schemas_assist.DataClean import cleaning_Immigra_data, \
 											cleaning_Airport_data, \
 											cleaning_CityTemper_data
 
-from schemas_assist.CreatTables import creat_D_DateTime
-
+from schemas_assist.CreatTables import creat_D_DateTime, \
+										creat_D_Immigrant_detail
 
 # -----------------------------------------------------------------------------
 #  To read dase sets file by PySpark, to use PySpark.sql and functions later
@@ -37,7 +37,7 @@ def create_spark_session():
 	return spark
 
 
-# -----------------------------------------------------------------------------
+#____________________vvv____________________vvv____________________vvv____________________vvv
 # Step 1: Scope the Project and Gather Data
 def Check_NaN(type, input_path):
 	""" Explore dataset by pandas df and check NaN values and Duplicated if needed.
@@ -73,35 +73,30 @@ def Check_NaN(type, input_path):
 		# print(df.isnull().sum())
 
 
-
-
-# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 # From output Step-1 exploring data, write up to docs for Steps2 
 # From the Step2 docs: build flow of each function to process data in Step3
 
-# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 # Step 3; build ETL process by each function define process data 
-
-def process_Immigra_data(spark, input_data):
-	""" Function use to read all 12 sas7bat data files of Immigration datasets.
-	Loading data files, check NaN and duplicate value, do cleaning data, and Loading into target table
-	"""
+#____________________vvv____________________vvv____________________vvv____________________vvv
+def MultipleRead_sas_files(spark, input_da_path, file_to_load=1):
+	""" An auxliary function to handling muliple read sas data file.
+	Input given by sas data path files.
+	Output is Spark Data Frame after read raw sas data files
+	Optional to select How many file was read for saving run time to test."""
 
 	# Immig_datapath= '../../data/18-83510-I94-Data-2016'
-	namefiles = os.listdir(input_data)
+	namefiles = os.listdir(input_da_path)
 
 	# return list of full path files
-	files = [os.path.join(input_data, f) for f in namefiles if os.path.isfile(os.path.join(input_data, f))]
-
-	# print("to see list of file name path files ->> \n")
-	# print(files)
+	files = [os.path.join(input_da_path, f) for f in namefiles if os.path.isfile(os.path.join(input_da_path, f))]
 
 	# To union all files in Immigration data files path
 	def unionAll(*dfs):
 		return reduce(DataFrame.unionAll, dfs)
 
 	i = 0
-	print("\n To see accumulating df.count for 12 data files .... \n")
 	for file in files:
 		if(i==0):
 			dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
@@ -110,53 +105,70 @@ def process_Immigra_data(spark, input_data):
 		if(i>0):
 			dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
 			print(dfS.count())
-		# tempo to saving time run test
-		if(i==0): 
+		# break accumulating as expected file_to_load to run test
+		if((file_to_load-1) == i): 
 			break
 		i = i+1
+	
+	return dfS
+
+#____________________vvv____________________vvv____________________vvv____________________vvv
+def process_Immigra_data(spark, input_data):
+	""" Function use to read all 12 sas7bat data files of Immigration datasets.
+	Loading data files, check NaN and duplicate value, do cleaning data, and Loading into target table
+	"""
+
+	sas_files_toload = 1
+	print("\n Accumulating Read into sas_data Schema for {} sas data files .... \n".format(sas_files_toload))
+	# Run test only first file for saving run time
+	dfS = MultipleRead_sas_files(spark, input_data, sas_files_toload)
 
 	print("\n Schema of Immigra_data ------------------------------------- \n")
 	dfS.printSchema()
-	dfS.show(3)
+	dfS.show(5)
 
-	# ________vvv Debug ....________vvv Debug ....________vvv Debug ....________vvv Debug ....
 	print("Process creating Dimensional DateTime table here .... \n ")
-	creat_D_DateTime(dfS)
+	D_DateTime_table = creat_D_DateTime(dfS)
+	D_DateTime_table.printSchema()
+	D_DateTime_table.show()
 
-	# ________vvv Debug ....________vvv Debug ....________vvv Debug ....________vvv Debug ....
+	print("\n Write parquet of D_DateTime_table table  ... ... \n")
+	D_DateTime_table.write \
+          			.mode('overwrite') \
+          			.partitionBy('Year') \
+          			.parquet("D_DateTime_table_par")
+	D_DateTime_table=spark.read.parquet("D_DateTime_table_par")
+	print("\n Finished writing parquet of D_DateTime_table")
 
-
-
-	print("\n Process basic cleaning data for Immigration datasets ...")
+	# Start data cleaning
+	print("\n Process basic cleaning data before load to Fact_Immigrant table  ...")
 	NaN_sublist=['i94cit']
-	Dub_sublist=['cicid']
-	dfS = cleaning_Immigra_data(dfS, NaN_sublist, Dub_sublist)
-
+	Dup_sublist=['cicid']
+	dfS = cleaning_Immigra_data(dfS, NaN_sublist, Dup_sublist)
 
 	print("Loading data to table later ... ")
 	# creat fact table Fact_Immigrant 
-	# 
-
+	# Fact_Immigrant_table = ...
 
 	# Write parquet of Fact_Immigrant table
 	# 
 
 	# droping more NaN in detail information, prior to loading to  D_Immigrant_detail
 	print("\n Droping NaN values for Dim Immigration detail info ... \n")
-
-	# people without citizenship and flight number info will be rejected to investing more
-	# NaN_sublist = ['fltno']
 	dfS = cleaning_Dim_Immigra(dfS, NaN_subset = ['fltno'])
 
-
 	# creat dimensional table D_Immigrant_detail
-	# 
-
-
+	D_Immigrant_detail_table = creat_D_Immigrant_detail(dfS)
+	D_Immigrant_detail_table.printSchema()
+	D_Immigrant_detail_table.show()
+	
 	# Write parquet of D_Immigrant_detail table
-	# 
-
-
+	# Immigrant_detail_table_par
+	D_Immigrant_detail_table.write \
+          					.mode('overwrite') \
+          					.partitionBy('ArriveMode') \
+          					.parquet("Immigrant_detail_table_par")
+	D_Immigrant_detail_table=spark.read.parquet("Immigrant_detail_table_par")
 
 	# print("\n Writing and Reading Parquet partitionBy `i94yr`... \n")
 	# dfS.write\
@@ -166,7 +178,8 @@ def process_Immigra_data(spark, input_data):
 	# dfS=spark.read.parquet("sas_data1")
 
 # end of process_Immigra_data(xxx)
-# ------------------------------------------------------------------------------------------------------------
+
+#____________________vvv____________________vvv____________________vvv____________________vvv
 def process_UsCities_data(spark, input_data):
 
 	# dfS = spark.read.csv(input_data, sep=";")
@@ -177,10 +190,8 @@ def process_UsCities_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-	
 	# UsCities consider no need to do NaN drop
 	dfS = cleaning_UsCities_data(dfS, Dup_subset=['City'])
-
 
 	# before write parquet, rename invalid characters in column name
 	dfS = dfS.select([col(c).alias(
@@ -202,7 +213,8 @@ def process_UsCities_data(spark, input_data):
 	#	.partitionBy('Race')\
 	#	.parquet("USCities_data2")
 	# dfS=spark.read.parquet("USCities_data2")
-# ---------------------------------------------------------------
+
+#____________________vvv____________________vvv____________________vvv____________________vvv
 def process_AirPort_data(spark, input_data):
 	
 	dfS = spark.read.options(header='True', inferSchema='True')\
@@ -232,21 +244,11 @@ def process_CityTemper_data(spark, input_data):
 	dfS.printSchema()
 	dfS.show(2)
 
-
 	dfS = cleaning_CityTemper_data(dfS, NaN_subset=['AverageTemperature'], Dup_subset=['City'])
 
-
 	print("Loading data to table at here later ... ")
-	
-	# print("Writing and Reading Parquet partitionBy `Country` ... \n")
-	# dfS.write\
-	#	.mode('overwrite')\
-	#	.partitionBy('Country')\
-	#	.parquet("Temp_data2")
-	# dfS=spark.read.parquet("Temp_data2")
 # -----------------------------------------------------------------------------
 # Step 3: Define the Data Model: Done by Schema diagram and Desciption in Jupyter NoteBook
-
 
 # -----------------------------------------------------------------------------
 # Step 4: Run Pipelines to Model the Data 
@@ -255,7 +257,7 @@ def process_CityTemper_data(spark, input_data):
 
 ## 4.2 Data Quality Checks
 
-
+#____________________vvv____________________vvv____________________vvv____________________vvv
 def main():
 	spark = create_spark_session()
 
@@ -284,10 +286,8 @@ def main():
 	# Check_NaN('airport', input_AirPort_data)
 
 
-	# Step2: Do write up the doc
-	# Some cleaning for NaN and Duplicated data were done in process each datasets right below
+	# Step2: Do write up the doc in Jupiter NoteBook
 	# ---------------------------------------------
-
 
 	# Step3: Build a complete ETL process
 	# ---------------------------------------------
@@ -300,8 +300,7 @@ def main():
 	# Propotype want to build:  process_function(spark, input, output)
 
 
-
-	# To read the dataset using the PySpark 
+	# Process one by one data set source file for ETL
 	process_Immigra_data(spark, input_Immig_data )
 
 """ 	process_UsCities_data(spark, input_UsCities_data )

@@ -12,6 +12,14 @@ df_Immigration = df_Immigration.withColumn("depdate", get_date(df_Immigration.de
 # drop duplicated: 
 dropDisDF = df.dropDuplicates(["department","salary"])
 
+#########################################################
+# Write parquet files template:
+print("Writing and Reading Parquet partitionBy `Country` ... \n")
+dfS.write\
+	.mode('overwrite')\
+	.partitionBy('Country')\
+	.parquet("Temp_data2")
+dfS=spark.read.parquet("Temp_data2")
 ##########################################################
 #  timestamp NaN check in Schema Spark
 from pyspark.sql import functions as f
@@ -27,6 +35,28 @@ df.select(*[
 cols_check = [list of columns]
 
 ##########################################################
+# multiple read file bk
+# Immig_datapath= '../../data/18-83510-I94-Data-2016'
+namefiles = os.listdir(input_data)
+# return list of full path files
+files = [os.path.join(input_data, f) for f in namefiles if os.path.isfile(os.path.join(input_data, f))]
+# To union all files in Immigration data files path
+def unionAll(*dfs):
+	return reduce(DataFrame.unionAll, dfs)
+i = 0
+for file in files:
+	if(i==0):
+		dfS = spark.read.format('com.github.saurfang.sas.spark').load(file)
+		cols= dfS.columns
+		print(dfS.count())
+	if(i>0):
+		dfS = unionAll(dfS,spark.read.format('com.github.saurfang.sas.spark').load(file).select([col for col in cols]))
+		print(dfS.count())
+	# tempo to saving time run test
+	if(i==0): 
+		break
+	i = i+1
+#########################################################
 
 
 spark = create_spark_session()

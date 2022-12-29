@@ -20,7 +20,7 @@ def creat_Fact_Immigrant(dfS):
     """ creat the Fact_Immigrant from Immigration US data set i94 sas7dat files """
 
     
-# ________v________v________v________v________v________v________v________v
+# ________________vvv________________vvv________________vvv ________________vvv
 def creat_D_Immigrant_detail(dfS_i94sas):
     """ Creat D_Immigrant_detail working as a detail immigration people to US, data from from Immigration US data set.
    Use-case is intend to serving security investigation of each US-immigrated people in future"""
@@ -34,7 +34,9 @@ def creat_D_Immigrant_detail(dfS_i94sas):
                                             col('gender').alias('Gender'),\
                                             col('fltno').alias('FlightNumber'),\
                                             col('matflag').alias('MatchArriveDeparture'))
-# ________v________v________v________v________v________v________v________v
+    return D_Immigrant_detail
+
+# ________________vvv________________vvv________________vvv ________________vvv
 def creat_D_WorldTemp(dfS_Temp):
     """ Creat D_WorldTemp from data set GlobalLandTemperatureByCity"""
 
@@ -48,7 +50,7 @@ def creat_D_WorldTemp(dfS_Temp):
                                     col('city_code xxxx')
                                 )
 
-# ________v________v________v________v________v________v________v________v
+# ________________vvv________________vvv________________vvv ________________vvv
 def creat_D_USCities(dfS_USCities):
     """ Creat D_USCities from data set us-cities-demographics """
 
@@ -63,26 +65,20 @@ def creat_D_USCities(dfS_USCities):
                                         col('').alias('Race'), \
                                         col('city_code xxxx'))
 
-# ________v________v________v________v________v________v________v________v
+# ________________vvv________________vvv________________vvv ________________vvv
 def creat_D_DateTime(dfS_i94sas):
     """ Creat D_DateTime from Immigration US data set i94 sas7dat files.
     Input extract from arrdate of i94 data"""
 
-    # Should select get datetime data from a dataset and extract to each field `Year, Month, Day, DayOfWeek`
-
-    # Need to convert from timestamp in sas_data to iso format
+    # Need to convert from timestamp in sas_data to iso format and extract to each field `Year, Month, Day, DayOfWeek`
     get_date = udf(lambda x: (dt.datetime(1960, 1, 1).date() + dt.timedelta(float(x))).isoformat() if x else None)
     dfS_i94sas = dfS_i94sas.withColumn("arrdate", get_date(dfS_i94sas.arrdate))
     dfS_i94sas = dfS_i94sas.withColumn("depdate", get_date(dfS_i94sas.depdate))
 
-    # ater this arrdate and depdate will be looks like 2016-04-07, care only about arrdate, with no NaN consists
-
-    # print("____________VVV____________VVV____________VVV____________VVV ... \n")
+    # Ater this arrdate and depdate will be looks like 2016-04-07, care only about arrdate, with no NaN consists
+    # print("____________VVV_Debug info ... ... ... \n")
     # print("just for see dfS sas data after convert arrdate depdate to iso ... \n")
     # dfS_i94sas.show(5)
-
-    # print("____________VVV____________VVV____________VVV____________VVV ... \n")
-
 
     # get the root column isodate , with distinct()
     D_DateTime_df = dfS_i94sas.select(col('arrdate').alias('ArriveDate'), \
@@ -92,11 +88,8 @@ def creat_D_DateTime(dfS_i94sas):
                                       date_format(col('arrdate'), "EEEE").alias('DayOfWeek'), \
                                       )
     
-    print("Just to check DateTime_Df after do convert time format ... \n")
-    D_DateTime_df.show(10)
+    # print("Just to check DateTime_Df after do convert time format ... \n")
+    # D_DateTime_df.show(10)
 
     return D_DateTime_df
-
-    # add more columns that derivates from above `ArriveDate`
-    # D_DateTime_df = D_DateTime_df.withColumn(year)
 

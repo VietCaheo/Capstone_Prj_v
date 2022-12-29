@@ -232,3 +232,8 @@ Use data lake model to leverage:
 # print("to see NaN value in interest columns of df_Temper... \n")
 # NaN_dt=df_Temper['dt'].isna().sum()
 # print("NaN value number of column dt is: {} \n".format(NaN_dt))
+
+##############################################################################
+<!-- Improment points -->
+-> Dealing with Co-ordinates value in Airport and Temperature data
+-> making main() with interact in console for selecting run-time mode (Ex. Switching or Enable/Disable for show NaN value in DataFrame by pandas df or show in Pyspark Schema)
