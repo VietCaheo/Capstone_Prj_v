@@ -1,0 +1,10 @@
+
+To select which column become PK/FK.
+
+How to choose the data model and Create a ERD
+Tool for draw ERD
+
+
+Do ETL pipe line for loading data to tables
+
+Data quality check ???
