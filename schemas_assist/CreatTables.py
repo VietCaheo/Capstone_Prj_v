@@ -28,17 +28,22 @@ def creat_Fact_Immigrant(dfS):
     dfS = dfS.withColumn("arrdate", get_date(dfS.arrdate))
     dfS = dfS.withColumn("depdate", get_date(dfS.depdate))
 
-    Fact_Immigrant_table = dfS.select(col('cicid').alias('cicid_Immigrant'),\
-                                            col('i94port').alias('AirPortCode'),\
-                                            col('arrdate').alias('ArriveDate'),\
-                                            col('depdate').alias('DepartureDate'),\
-                                            col('i94res').alias('FromResidence'),\
-                                            col('visatype').alias('VisaType'), \
-                                            col('admnum').alias('AdminNumber')      
+    # to add unique PK for Fact table
+    # add incresing_id to make PK for FactTable:
+    dfS = dfS.withColumn('Immig_Fact_ID', monotonically_increasing_id())
+
+    Fact_Immigrant_table = dfS.select('Immig_Fact_ID', \
+                                       col('cicid').alias('cicid_Immigrant'),\
+                                       col('i94port').alias('AirPortCode'),\
+                                       col('arrdate').alias('ArriveDate'),\
+                                       col('depdate').alias('DepartureDate'),\
+                                       col('i94res').alias('FromResidence'),\
+                                       col('visatype').alias('VisaType'), \
+                                       col('admnum').alias('AdminNumber')      
                                     )
     print("Show schema of Fact_Immigrant table ...\n")
     Fact_Immigrant_table.printSchema()
-    Fact_Immigrant_table.show(3)
+    Fact_Immigrant_table.show(5)
 
     return Fact_Immigrant_table
     
@@ -48,8 +53,10 @@ def creat_D_Immigrant_detail(dfS):
    Use-case is intend to serving security investigation of each US-immigrated people in future"""
 
     # Simply pick from data frame in flow process the i94 data
+    # cicid onsider as PK of this Dim table
     D_Immigrant_detail_table = dfS.select(col('cicid').alias('cicid_Immigrant'),\
                                             col('i94cit').alias('Citizenship'),\
+                                            col('i94addr').alias('ArriveStateCode'),\
                                             col('depdate').alias('DepartureDate'),\
                                             col('i94mode').alias('ArriveMode'),\
                                             col('biryear').alias('BirthYear'),\
@@ -63,24 +70,40 @@ def creat_D_Immigrant_detail(dfS):
     return D_Immigrant_detail_table
 
 # ________________vvv________________vvv________________vvv ________________vvv
-def creat_D_WorldTemp(dfS_Temp):
-    """ Creat D_WorldTemp from data set GlobalLandTemperatureByCity"""
+def creat_D_WorldTemp(spark, dfS, port_mapto_city):
+    """ Creat D_WorldTemp from data set GlobalLandTemperatureByCity for quering temperature or coordinate data in the city world"""
 
-    #  Looks like the `dt` is timestamp type that supported by spark, could directly use to adding to table
-    # a FK is city_code got from joining by a auxiliary dfS just for get city_code and country_code in  i94_label_description data
-    D_WorldTemp_table =  dfS_Temp.select(col('dt').alias('DateTime'), \
-                                    col('AverageTemperature').alias('AvgTemperature'), \
-                                    col('City').alias('CityName'), \
-                                    col('Latitude').alias('Latitude'), \
-                                    col('Longitude').alias('Longtitude'), \
-                                    col('city_code xxxx')
-                                )
+    #Rename for dt column
+    D_Temperature_table = dfS.withColumnRenamed('dt','DateTime')
 
-    print("Show schema of D_WorldTemp_table ...\n")
-    D_WorldTemp_table.printSchema()
-    D_WorldTemp_table.show(3)
+    # Create spark DataFrame from pd.df port_mapto_city
+    port_mapto_city_df = spark.createDataFrame(port_mapto_city)
 
-    return D_WorldTemp_table
+    # join 02 dfS by look-up city_name, keep outer at Temperature side when Joining
+    output_temperature_dfS = port_mapto_city_df.join(D_Temperature_table, \
+                                                        on=(port_mapto_city_df.CityName == D_Temperature_table.City),\
+                                                        how='right_outer')
+    
+
+    output_temperature_dfS =  output_temperature_dfS.select(port_mapto_city_df.PortCode.alias('AirPortCode'), \
+                                                            'DateTime', \
+                                                            col('AverageTemperature').alias('AvgTemperature'), \
+                                                            col('City').alias('CityName'), \
+                                                            'Latitude', \
+                                                            'Longitude'
+                                                            )
+
+    print("Show schema of new output_temperature_dfS  ...\n")
+    output_temperature_dfS.printSchema()
+    output_temperature_dfS.show(5)
+
+    print("\n how many rows in new table ... {}".format(output_temperature_dfS.count()))
+
+    # Optional observation, put comment for saving run time
+    # NaNcount = output_temperature_dfS.count() - output_temperature_dfS.dropna(how='any', subset='AirPortCode').count()
+    # print("\n verfiry any How many NULL in AirPortCode column {}".format(NaNcount))
+
+    return output_temperature_dfS
 
 # ________________vvv________________vvv________________vvv ________________vvv
 def creat_D_USCities(spark, dfS, port_mapto_city):
@@ -99,7 +122,7 @@ def creat_D_USCities(spark, dfS, port_mapto_city):
                                                 how='right_outer')
 
     # Adding the PortCode from i94port to target table
-    output_city_df = output_city_df.select( port_mapto_city_df.PortCode, \
+    output_city_df = output_city_df.select(port_mapto_city_df.PortCode.alias('AirPortCode'), \
                                             col('City').alias('CityName'), \
                                             col('State Code').alias('StateCode'), \
                                             col('State').alias('StateName'), \
@@ -108,15 +131,15 @@ def creat_D_USCities(spark, dfS, port_mapto_city):
                                             col('Number of Veterans').alias('Veterans'), \
                                             col('Foreign-born').alias('ForeignBorn'), \
                                             col('Average Household Size').alias('AvgHouseholdSize'), \
-                                            col('Race').alias('Race')  )
+                                            col('Race').alias('Race'))
 
     print("Show schema of Us_citites table after Joining ...\n")
     output_city_df.printSchema()
-    output_city_df.show(20)
+    output_city_df.show(5)
     print("\n how many rows in new table ... {}".format(output_city_df.count()))
 
-    NaNcount = output_city_df.count() - output_city_df.dropna(how='any', subset='PortCode').count()
-    print("\n verfiry any How many NULL in PortCode column {}".format(NaNcount))
+    NaNcount = output_city_df.count() - output_city_df.dropna(how='any', subset='AirPortCode').count()
+    print("\n verfiry any How many NULL in AirPortCode column {}".format(NaNcount))
 
     return output_city_df
 
@@ -137,9 +160,9 @@ def creat_D_Airport(spark, dfS, port_mapto_city):
                                                on=(port_mapto_city_df.CityName == D_Airport_table.municipality),\
                                                how='right_outer')
 
-    # Adding the PortCode from i94port to target table
-    output_city_df = output_city_df.select( col('ident').alias('AirPortID'), \
-                                            port_mapto_city_df.PortCode, \
+    # `ident` is served as unique ID value for AirPort table
+    output_city_df = output_city_df.select( port_mapto_city_df.PortCode.alias('AirPortCode'), \
+                                            col('ident').alias('AirPortID'), \
                                             col('type').alias('Type'), \
                                             col('name').alias('AirportName'), \
                                             col('municipality').alias('CityName'), \
@@ -151,12 +174,12 @@ def creat_D_Airport(spark, dfS, port_mapto_city):
 
     print("Show schema of new D_Airport_table ...\n")
     output_city_df.printSchema()
-    output_city_df.show(20)
+    output_city_df.show(5)
 
     print("\n how many rows in new table ... {}".format(output_city_df.count()))
 
-    NaNcount = output_city_df.count() - output_city_df.dropna(how='any', subset='PortCode').count()
-    print("\n verfiry any How many NULL in PortCode column {}".format(NaNcount))
+    NaNcount = output_city_df.count() - output_city_df.dropna(how='any', subset='AirPortCode').count()
+    print("\n verfiry any How many NULL in AirPortCode column {}".format(NaNcount))
 
     return output_city_df
 
@@ -175,7 +198,7 @@ def creat_D_DateTime(dfS):
     # print("just for see dfS sas data after convert arrdate depdate to iso ... \n")
     # dfS.show(5)
 
-    # get the root column isodate , with distinct()
+    # Get the root column isodate , with distinct()
     D_DateTime_table = dfS.select(col('arrdate').alias('ArriveDate'), \
                                       year(col('arrdate')).alias('ArriveYear'), \
                                       month(col('arrdate')).alias('ArriveMonth'), \

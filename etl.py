@@ -29,10 +29,8 @@ from schemas_assist.CreatTables import creat_D_DateTime, \
                                         creat_D_Immigrant_detail, \
                                         creat_Fact_Immigrant, \
                                         creat_D_USCities, \
-                                        creat_D_Airport
-
-
-
+                                        creat_D_Airport, \
+                                        creat_D_WorldTemp
 # -----------------------------------------------------------------------------
 #  To read dase sets file by PySpark, to use PySpark.sql and functions later
 # dataframe read by Spark, name starting withg dfS_
@@ -142,13 +140,18 @@ def process_Immigra_data(spark, input_data):
     print("\n Loading data to table .... \n")
     D_DateTime_table = creat_D_DateTime(dfS)
 
+    before_parquets_write = D_DateTime_table.count()
+
     print("\n Write parquet of D_DateTime_table table  ... ... \n")
     D_DateTime_table.write \
                       .mode('overwrite') \
                       .partitionBy('ArriveYear') \
                       .parquet("D_DateTime_table_par")
     D_DateTime_table=spark.read.parquet("D_DateTime_table_par")
-    print("Finished writing parquet of D_DateTime_table \n")
+
+    after_parquets_read = D_DateTime_table.count()
+    
+    Data_QualityCheck(before_parquets_write, after_parquets_read)
 
     # Filter list is depend on user's purpose in future use-case
     print("\n Process basic cleaning data before load to Fact_Immigrant table  ...")
@@ -159,12 +162,18 @@ def process_Immigra_data(spark, input_data):
     print("\n Loading data to table .... \n")
     Fact_Immigrant_table = creat_Fact_Immigrant(dfS)
 
+    before_par_write_FactImm = Fact_Immigrant_table.count()
+
     print("Writing parquet files for Fact_Immigrant_table ... \n")
     Fact_Immigrant_table.write \
                         .mode('overwrite') \
                         .partitionBy('VisaType') \
                         .parquet("Fact_Immigrant_table_par")
     Fact_Immigrant_table=spark.read.parquet("Fact_Immigrant_table_par")
+
+    after_par_read_FactImm = Fact_Immigrant_table.count()
+
+    Data_QualityCheck(before_par_write_FactImm, after_par_read_FactImm)
 
     
     # Do more cleaning Data Dim_table of Immigration info
@@ -174,7 +183,8 @@ def process_Immigra_data(spark, input_data):
     print("\n Loading data to table .... \n")
     D_Immigrant_detail_table = creat_D_Immigrant_detail(dfS)
 
-    
+    before_par_write_DimImm = D_Immigrant_detail_table.count()
+
     # Write parquet of D_Immigrant_detail table
     # Immigrant_detail_table_par
     D_Immigrant_detail_table.write \
@@ -183,7 +193,14 @@ def process_Immigra_data(spark, input_data):
                               .parquet("Immigrant_detail_table_par")
     D_Immigrant_detail_table=spark.read.parquet("Immigrant_detail_table_par")
 
-    print("Finished the process for Immigration Data ... \n")
+    after_par_read_DimImm = D_Immigrant_detail_table.count()
+
+    Data_QualityCheck(before_par_write_DimImm, after_par_read_DimImm)
+
+    print("Finished process Immigration Data \n")
+
+    # return a list of dfS from Fact and Dim Imm
+    return [Fact_Immigrant_table, D_Immigrant_detail_table]
 
 #____________________vvv____________________vvv____________________vvv____________________vvv
 def process_UsCities_data(spark, input_data, port_mapto_city):
@@ -204,6 +221,7 @@ def process_UsCities_data(spark, input_data, port_mapto_city):
     print("\n Loading data to table .... \n")
     D_USCities_table = creat_D_USCities(spark, dfS, port_mapto_city)
 
+    before_par_write_UScity = D_USCities_table.count()
 
     print("Start Writing parquet files for D_USCities_table ... \n")
     D_USCities_table.write \
@@ -212,22 +230,13 @@ def process_UsCities_data(spark, input_data, port_mapto_city):
                         .parquet("D_USCities_table_par")
     D_USCities_table=spark.read.parquet("D_USCities_table_par")
 
+    after_par_read_USCity = D_USCities_table.count()
 
-    # before write parquet, rename invalid characters in column name
-    # dfS = dfS.select([col(c).alias(
-    #     c.replace( '(', '')
-    #     .replace( ')', '')
-    #     .replace( ',', '')
-    #     .replace( ';', '')
-    #     .replace( '{', '')
-    #     .replace( '}', '')
-    #     .replace( '\n', '')
-    #     .replace( '\t', '')
-    #     .replace( ' ', '_')
-    # ) for c in dfS.columns])
+    Data_QualityCheck(before_par_write_UScity, after_par_read_USCity)
 
     print("Finished for us-cities data file.")
 
+    return D_USCities_table
 #____________________vvv____________________vvv____________________vvv____________________vvv
 def process_AirPort_data(spark, input_data, port_mapto_city):
     
@@ -243,6 +252,7 @@ def process_AirPort_data(spark, input_data, port_mapto_city):
     print("\n Loading data to table .... \n")
     D_AirPort_table = creat_D_Airport(spark, dfS, port_mapto_city)
 
+    before_parquets_write = D_AirPort_table.count()
 
     print("\n Writing and Reading Parquet files for dfS Airport ... ... \n")
     D_AirPort_table.write\
@@ -250,8 +260,12 @@ def process_AirPort_data(spark, input_data, port_mapto_city):
                    .partitionBy('Type')\
                    .parquet("Airport_parquet")
     D_AirPort_table=spark.read.parquet("Airport_parquet")
+
+    after_parquets_read = D_AirPort_table.count()
+
+    Data_QualityCheck(before_parquets_write, after_parquets_read)
 # -----------------------------------------------------------------------------
-def process_CityTemper_data(spark, input_data):
+def process_CityTemper_data(spark, input_data, port_mapto_city):
 
     dfS = spark.read.options(header='True', inferSchema='True')\
                     .csv(input_data)
@@ -263,14 +277,37 @@ def process_CityTemper_data(spark, input_data):
 
     dfS = cleaning_CityTemper_data(dfS, NaN_subset=['AverageTemperature'], Dup_subset=['City'])
 
-    print("Loading data to table at here later ... ")
+    print("\n Loading data to table .... \n")
+    D_WorldTemp_table = creat_D_WorldTemp(spark, dfS, port_mapto_city)
 
-# Step 4: Run Pipelines to Model the Data 
-## 4.1 Create the data model
+    before_parquets_write = D_WorldTemp_table.count()
 
+    print("\n Writing and Reading Parquet files for dfS WorldTemp ... \n")
+    D_WorldTemp_table.write\
+                     .mode('overwrite')\
+                     .partitionBy('CityName')\
+                     .parquet("WorldTemp_parquet")
+    D_WorldTemp_table=spark.read.parquet("WorldTemp_parquet")
 
-## 4.2 Data Quality Checks
+    after_parquets_read = D_WorldTemp_table.count()
 
+    Data_QualityCheck(before_parquets_write, after_parquets_read)
+
+    return D_WorldTemp_table
+
+#____________________vvv____________________vvv____________________vvv____________________vvv
+def Data_QualityCheck(before_write, after_write):
+    """ Function to check NUmber of table_Df has to write Parquet files is consistent or not
+    """
+
+    print("Do Quality check: data existing and data consistency... \n")
+    if(0 == before_write) or (0 == after_write):
+        raise ValueError("Fail to Loading data to table or Write to parquet files ...")
+        
+    if (before_write != after_write):
+        raise ValueError("Data is inconsistent before and after write Df target-table into parquet files ... \n ")
+    else:
+        print("Data is Existing in target tables and is Consistent before and after Write parquet. OK NOW, MOVE NEXT! ")
 #____________________vvv____________________vvv____________________vvv____________________vvv
 def main():
     spark = create_spark_session()
@@ -285,6 +322,7 @@ def main():
     i94_sas_Labels_Descriptions = './I94_SAS_Labels_Descriptions.SAS'
 
     # ---------------------------------------------------------------------------
+    # This for debug to see City Name as extracted from sas_labels_description file, then look-up for CityName on each dataset for visual check.
     # org_cities_name = []
     # std_cities_name = []
 
@@ -306,23 +344,52 @@ def main():
     print("Start process the SAS labels Description file ... \n")
     port_mapto_city = extract_CityName(i94_sas_Labels_Descriptions)
 
+    Immig_Result=[]
     # Process one by one data set source file for ETL
     print("\n ----------------------------------------------------")
     print("Start process the Immigration Data sas7dat ... \n")
-    process_Immigra_data(spark, input_Immig_data)
+    Immig_Result = process_Immigra_data(spark, input_Immig_data)
+    Fact_Imm_df = Immig_Result[0]
+    D_Imm_df = Immig_Result[1]
 
     print("\n ----------------------------------------------------")
     print("Start process the UsCities Demographic data ... \n")
-    process_UsCities_data(spark, input_UsCities_data, port_mapto_city)
+    UsCities_df = process_UsCities_data(spark, input_UsCities_data, port_mapto_city)
 
     print("\n ----------------------------------------------------")
     print("Start process the Airport data ... \n")
     process_AirPort_data(spark, input_AirPort_data, port_mapto_city)
 
-    # print("\n ----------------------------------------------------")
-    # print("Start process the World Temperature data ... \n")
-    # process_CityTemper_data(spark, input_CityTemper_data )
+    print("\n ----------------------------------------------------")
+    print("Start process the World Temperature data ... \n")
+    WorldTemp_dfS = process_CityTemper_data(spark, input_CityTemper_data, port_mapto_city)
+    print("FINISHED PROCESS ALL DATA SET INCLUDE DATA QUALITY CHECK \n")
 
+    #Show out evidence of datasets large enough
+    print("show out evidence of WorldTemp dataset with > 1mils rows .. \n")
+    print("Please note, Final Temp table is droped NaN and duplicated by `City` above ...\n")
+    print("Total of row in WorldTemp data set is 364130 + 8235082 + {}".format(WorldTemp_dfS.count()))
 
+    print("show out evidence of Immigration dataset is large > 1mils row ... \n")
+    print("This is number of row of Fact_Immigration table by staging only one sas7bdat file {}\n \n".format(Fact_Imm_df.count()))
+
+    # Bulid Demo Query for ForeignBorn in D_UsCities:
+    # Create a query to group count immigrants by their cities and include the "foreign_born" field in this city. The results could be ordered by the immigrant counts to see if cities with the most immigrants are indeed cities with the largest foreign-born counts.
+    print("Do SQL command to: group count immigrants by their cities and include the foreign_born field in this city. The results could be ordered by the immigrant counts to see if cities with the most immigrants are indeed cities with the largest foreign-born counts \n \n ")
+    Fact_Imm_df.createOrReplaceTempView("Fact_Imm")
+    D_Imm_df.createOrReplaceTempView("D_Imm")
+    UsCities_df.createOrReplaceTempView("UsCities")
+
+    sqlDF = spark.sql(""" SELECT COUNT(*) AS count_F_Immg
+                        FROM Fact_Imm AS f_imm
+                        JOIN UsCities AS city
+                        ON f_imm.AirPortCode = city.AirPortCode
+                        JOIN D_Imm AS d_imm
+                        ON f_imm.cicid_Immigrant = d_imm.cicid_Immigrant
+                        GROUP BY city.ForeignBorn
+                        ORDER BY count_F_Immg DESC
+                    """)
+    sqlDF.show(50)
+    
 if __name__ == "__main__":
     main()
